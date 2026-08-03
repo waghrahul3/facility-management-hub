@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -31,12 +31,13 @@ interface DashboardData {
 }
 
 export default function FacilityDashboard() {
-  const { user } = useAuth();
+  const { facilityId, base } = useFacilityScope();
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
-    api<DashboardData>(`/facility/${user?.facilityId}/dashboard`).then(setData);
-  }, [user?.facilityId]);
+    if (!facilityId) return;
+    api<DashboardData>(`/facility/${facilityId}/dashboard`).then(setData);
+  }, [facilityId]);
 
   if (!data) return <LoadingScreen label="Loading facility overview…" />;
 
@@ -61,7 +62,7 @@ export default function FacilityDashboard() {
         <Card
           title="Pending supplier payments"
           subtitle={`Week of ${fmtDate(data.weekStart)}`}
-          action={<Link to="/facility/payments"><Button variant="secondary" size="sm">Process</Button></Link>}
+          action={<Link to={`${base}/payments`}><Button variant="secondary" size="sm">Process</Button></Link>}
         >
           {data.pendingPayments.length === 0 ? (
             <EmptyState title="No pending payments" hint="Process Sunday payments when approved summaries exist" />
@@ -82,10 +83,10 @@ export default function FacilityDashboard() {
 
         <Card title="Quick actions">
           <div className="grid grid-cols-2 gap-3">
-            <Link to="/facility/drops"><Button variant="secondary" className="w-full">Register drop</Button></Link>
-            <Link to="/facility/tolis"><Button variant="secondary" className="w-full">Create toli</Button></Link>
-            <Link to="/facility/work-entries"><Button variant="secondary" className="w-full">Record work</Button></Link>
-            <Link to="/facility/approvals"><Button variant="secondary" className="w-full">Approve week</Button></Link>
+            <Link to={`${base}/drops`}><Button variant="secondary" className="w-full">Register drop</Button></Link>
+            <Link to={`${base}/tolis`}><Button variant="secondary" className="w-full">Create toli</Button></Link>
+            <Link to={`${base}/work-entries`}><Button variant="secondary" className="w-full">Record work</Button></Link>
+            <Link to={`${base}/approvals`}><Button variant="secondary" className="w-full">Approve week</Button></Link>
           </div>
         </Card>
       </div>

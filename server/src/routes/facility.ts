@@ -29,8 +29,9 @@ import { endOfWeek, startOfWeek } from "../lib/date.js";
 const router = Router();
 router.use(requireAuth);
 // SUPPLIER is allowed only on the public facility list (used to register drops);
-// every facility-scoped route below additionally enforces requireFacilityAccess.
-router.use(requireRole("SUPER_ADMIN", "FACILITY_ADMIN", "SUPPLIER"));
+// every facility-scoped route below additionally enforces requireFacilityAccess,
+// which also admits COMPANY_ADMINs for facilities owned by their company.
+router.use(requireRole("SUPER_ADMIN", "FACILITY_ADMIN", "COMPANY_ADMIN", "SUPPLIER"));
 
 // ---------------------------------------------------------------------------
 // Helper: week params from query (weekStart optional)
@@ -105,7 +106,7 @@ router.get(
 router.post(
   "/:facilityId/suppliers",
   requireFacilityAccess,
-  requireRole("SUPER_ADMIN", "FACILITY_ADMIN"),
+  requireRole("SUPER_ADMIN", "FACILITY_ADMIN", "COMPANY_ADMIN"),
   asyncHandler(async (req, res) => {
     const { name, email, phone, contact_person, address, city } = req.body ?? {};
     if (!name) throw badRequest("name is required");
@@ -452,9 +453,10 @@ router.post(
   })
 );
 
-// Only facility admins (and the global super admin) may edit a work entry or
-// change its status — suppliers and toli leaders are strictly view-only.
-const workEntryAdmin = requireRole("SUPER_ADMIN", "FACILITY_ADMIN");
+// Only facility admins, company admins (of the owning company) and the global
+// super admin may edit a work entry or change its status — suppliers and toli
+// leaders are strictly view-only.
+const workEntryAdmin = requireRole("SUPER_ADMIN", "FACILITY_ADMIN", "COMPANY_ADMIN");
 
 router.put(
   "/:facilityId/work-entries/:entryId",

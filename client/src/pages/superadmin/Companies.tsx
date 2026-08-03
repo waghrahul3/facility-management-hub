@@ -51,7 +51,18 @@ export default function CompaniesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    api<{ companies: Company[] }>("/super-admin/companies").then((r) => setCompanies(r.companies));
+    api<{ companies: { company: Omit<Company, "facilityCount" | "adminName" | "adminEmail">; facilityCount: number; adminName: string | null; adminEmail: string | null }[] }>(
+      "/super-admin/companies"
+    ).then((r) =>
+      setCompanies(
+        r.companies.map((row) => ({
+          ...row.company,
+          facilityCount: row.facilityCount,
+          adminName: row.adminName,
+          adminEmail: row.adminEmail,
+        }))
+      )
+    );
   }, []);
 
   useEffect(load, [load]);

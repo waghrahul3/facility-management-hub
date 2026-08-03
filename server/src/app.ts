@@ -6,6 +6,7 @@ import fs from "node:fs";
 
 import authRoutes from "./routes/auth.js";
 import superAdminRoutes from "./routes/superadmin.js";
+import githubRoutes from "./routes/github.js";
 import companyRoutes from "./routes/company.js";
 import facilityRoutes from "./routes/facility.js";
 import supplierRoutes from "./routes/supplier.js";
@@ -37,6 +38,7 @@ export function createApp() {
   // API routes
   app.use("/api/auth", authRoutes);
   app.use("/api/super-admin", superAdminRoutes);
+  app.use("/api/super-admin", githubRoutes);
   app.use("/api/company", companyRoutes);
   app.use("/api/facility", facilityRoutes);
   app.use("/api/supplier", supplierRoutes);

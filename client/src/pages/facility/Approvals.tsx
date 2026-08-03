@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -31,8 +31,7 @@ interface SummaryRow {
 }
 
 export default function ApprovalsPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [summaries, setSummaries] = useState<SummaryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [busy, setBusy] = useState(false);

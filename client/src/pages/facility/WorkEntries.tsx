@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -46,8 +46,7 @@ interface EntryRow {
 }
 
 export default function WorkEntriesPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [entries, setEntries] = useState<EntryRow[] | null>(null);
   const [tolis, setTolis] = useState<ToliOption[]>([]);
   const [bagSizes, setBagSizes] = useState<BagOption[]>([]);

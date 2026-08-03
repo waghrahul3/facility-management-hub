@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Button,
   Card,
@@ -39,8 +39,7 @@ interface ToliRow {
 }
 
 export default function TolisPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [tolis, setTolis] = useState<ToliRow[] | null>(null);
   const [drops, setDrops] = useState<DropOption[]>([]);
   const [showModal, setShowModal] = useState(false);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -47,8 +47,7 @@ interface DropRow {
 }
 
 export default function DropsPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [drops, setDrops] = useState<DropRow[] | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());

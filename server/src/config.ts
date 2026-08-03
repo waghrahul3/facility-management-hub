@@ -22,4 +22,12 @@ export const config = {
   // Auto-seed demo data on an empty database. Disable (SEED_DEMO=false) in
   // production so no default credentials are ever created on a hosted DB.
   seedDemo: (process.env.SEED_DEMO ?? "true").toLowerCase() !== "false",
+  // GitHub integration (Super Admin push-to-repo). The token is set via the
+  // project's Keys/API keys tab (env var GITHUB_TOKEN). Target repo defaults
+  // to the project's GitHub home but can be overridden per-request in the UI.
+  github: {
+    token: process.env.GITHUB_TOKEN ?? "",
+    owner: process.env.GITHUB_REPO_OWNER ?? "waghrahul3",
+    repo: process.env.GITHUB_REPO_NAME ?? "facility-management-hub",
+  },
 } as const;

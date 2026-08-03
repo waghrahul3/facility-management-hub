@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -46,8 +46,7 @@ interface HistoryRow {
 }
 
 export default function PaymentsPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [pending, setPending] = useState<PendingPayment[] | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());

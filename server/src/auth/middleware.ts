@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
+import { eq } from "drizzle-orm";
 import { verifyAccessToken } from "./jwt.js";
+import { db } from "../db/index.js";
+import { facilities } from "../db/schema.js";
 
 export type Role =
   | "SUPER_ADMIN"
@@ -73,17 +76,35 @@ export function requireCompanyAccess(req: Request, res: Response, next: NextFunc
 }
 
 /**
- * For facility-scoped routes: ensures a FACILITY_ADMIN can only access
- * their own facility (Super Admin may pass any facility id).
+ * For facility-scoped routes. Authorizes:
+ *  - SUPER_ADMIN: any facility
+ *  - FACILITY_ADMIN: their own facility
+ *  - COMPANY_ADMIN: any facility owned by their company
  */
-export function requireFacilityAccess(req: Request, res: Response, next: NextFunction) {
+export async function requireFacilityAccess(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: "Not authenticated" });
   const raw = req.params.facilityId;
   const facilityId = Array.isArray(raw) ? raw[0] : raw;
   if (!facilityId) return res.status(400).json({ error: "Missing facility id" });
+
+  const deny = () => res.status(403).json({ error: "Access to this facility is not allowed" });
+
   if (req.auth.role === "SUPER_ADMIN") return next();
-  if (req.auth.role === "FACILITY_ADMIN" && req.auth.facilityId === facilityId) {
-    return next();
+  if (req.auth.role === "FACILITY_ADMIN") {
+    return req.auth.facilityId === facilityId ? next() : deny();
   }
-  return res.status(403).json({ error: "Access to this facility is not allowed" });
+  if (req.auth.role === "COMPANY_ADMIN" && req.auth.companyId) {
+    try {
+      const [facility] = await db
+        .select({ company_id: facilities.company_id })
+        .from(facilities)
+        .where(eq(facilities.id, facilityId))
+        .limit(1);
+      if (facility && facility.company_id === req.auth.companyId) return next();
+    } catch (err) {
+      return next(err);
+    }
+    return deny();
+  }
+  return deny();
 }

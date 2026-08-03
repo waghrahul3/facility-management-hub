@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
+import { useFacilityScope } from "../../lib/facilityScope";
 import {
   Badge,
   Button,
@@ -22,8 +22,7 @@ interface RateRow {
 }
 
 export default function FacilityRatesPage() {
-  const { user } = useAuth();
-  const fid = user?.facilityId;
+  const { facilityId: fid } = useFacilityScope();
   const [facilityRates, setFacilityRates] = useState<RateRow[] | null>(null);
   const [globalRates, setGlobalRates] = useState<RateRow[]>([]);
   const [form, setForm] = useState({ bag_size_id: "", rate_amount: 0 });

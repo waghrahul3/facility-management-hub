@@ -1,7 +1,9 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { AppShell } from "./components/layout";
+import { FacilityScopeProvider } from "./lib/facilityScope";
+import FacilityTabs from "./components/FacilityTabs";
 import LoginPage from "./pages/LoginPage";
 import type { AuthUser } from "./lib/api";
 
@@ -16,6 +18,7 @@ import RatesPage from "./pages/superadmin/Rates";
 import PaymentsHistoryPage from "./pages/superadmin/PaymentsHistory";
 import SuppliersPage from "./pages/superadmin/Suppliers";
 import AuditLogPage from "./pages/superadmin/AuditLog";
+import GitHubPage from "./pages/superadmin/GitHub";
 
 // Company Admin pages
 import CompanyDashboard from "./pages/company/Dashboard";
@@ -51,6 +54,23 @@ function RequireRole({ user, roles, children }: { user: AuthUser; roles: AuthUse
   return <>{children}</>;
 }
 
+/** Facility-admin routes operate on the admin's own facility. */
+function FacilityAdminScope({ user, children }: { user: AuthUser; children: ReactNode }) {
+  return <FacilityScopeProvider facilityId={user.facilityId}>{children}</FacilityScopeProvider>;
+}
+
+/** Company-admin routes operate on a facility selected by URL, with workspace tabs. */
+function CompanyFacilityWorkspace({ children }: { children: ReactNode }) {
+  const { facilityId } = useParams<{ facilityId: string }>();
+  const base = `/company/facility/${facilityId}`;
+  return (
+    <FacilityScopeProvider facilityId={facilityId ?? null} base={base}>
+      {facilityId && <FacilityTabs base={base} />}
+      {children}
+    </FacilityScopeProvider>
+  );
+}
+
 function Protected() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -68,19 +88,29 @@ function Protected() {
         <Route path="/suppliers" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><SuppliersPage /></RequireRole>} />
         <Route path="/payments-history" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><PaymentsHistoryPage /></RequireRole>} />
         <Route path="/audit" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><AuditLogPage /></RequireRole>} />
+        <Route path="/github" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><GitHubPage /></RequireRole>} />
 
         {/* Company Admin */}
         <Route path="/company/dashboard" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyDashboard /></RequireRole>} />
         <Route path="/company/facilities" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilitiesPage /></RequireRole>} />
 
+        {/* Company Admin — full facility-admin capabilities per facility */}
+        <Route path="/company/facility/:facilityId/dashboard" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><FacilityDashboard /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/drops" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><DropsPage /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/tolis" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><TolisPage /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/work-entries" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><WorkEntriesPage /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/rates" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><FacilityRatesPage /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/approvals" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><ApprovalsPage /></CompanyFacilityWorkspace></RequireRole>} />
+        <Route path="/company/facility/:facilityId/payments" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><PaymentsPage /></CompanyFacilityWorkspace></RequireRole>} />
+
         {/* Facility Admin */}
-        <Route path="/facility/dashboard" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityDashboard /></RequireRole>} />
-        <Route path="/facility/drops" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><DropsPage /></RequireRole>} />
-        <Route path="/facility/tolis" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><TolisPage /></RequireRole>} />
-        <Route path="/facility/work-entries" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><WorkEntriesPage /></RequireRole>} />
-        <Route path="/facility/rates" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityRatesPage /></RequireRole>} />
-        <Route path="/facility/approvals" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><ApprovalsPage /></RequireRole>} />
-        <Route path="/facility/payments" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><PaymentsPage /></RequireRole>} />
+        <Route path="/facility/dashboard" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><FacilityDashboard /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/drops" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><DropsPage /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/tolis" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><TolisPage /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/work-entries" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><WorkEntriesPage /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/rates" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><FacilityRatesPage /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/approvals" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><ApprovalsPage /></FacilityAdminScope></RequireRole>} />
+        <Route path="/facility/payments" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><PaymentsPage /></FacilityAdminScope></RequireRole>} />
 
         {/* Supplier */}
         <Route path="/supplier/dashboard" element={<RequireRole user={user} roles={["SUPPLIER"]}><SupplierDashboard /></RequireRole>} />

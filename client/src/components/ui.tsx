@@ -427,11 +427,12 @@ export function StatCard({
   label: string;
   value: ReactNode;
   icon?: ReactNode;
-  tone?: "green" | "amber" | "slate" | "blue" | "violet";
+  tone?: "green" | "amber" | "red" | "slate" | "blue" | "violet";
 }) {
   const tones = {
     green: "bg-onion-50 text-onion-700",
     amber: "bg-husk-50 text-husk-600",
+    red: "bg-red-50 text-red-700",
     slate: "bg-field-100 text-field-600",
     blue: "bg-blue-50 text-blue-700",
     violet: "bg-violet-50 text-violet-700",

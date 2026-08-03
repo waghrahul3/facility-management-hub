@@ -89,7 +89,7 @@ export default function CompanyDashboard() {
         }
       >
         {data.facilityStats.length === 0 ? (
-          <EmptyState title="No facilities yet" hint="The Super Admin assigns facilities to this company" />
+          <EmptyState title="No facilities yet" hint="Onboard your first facility from the Facilities page" />
         ) : (
           <Table head={["Facility", "Drops (week)", "Tolis", "Pending payments", "Status"]} empty={null}>
             {data.facilityStats.map((r) => (
