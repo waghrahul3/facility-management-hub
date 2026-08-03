@@ -1,0 +1,11 @@
+node_modules/
+dist/
+client/dist/
+server/dist/
+server/drizzle/meta/
+*.log
+.env
+.env.local
+.DS_Store
+probe-env.mjs
+probe-root.txt

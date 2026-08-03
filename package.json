@@ -1,0 +1,48 @@
+{
+  "name": "onion-facility-center",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Onion Facility Center - multi-facility onion processing management with supplier drops, toli work recording, and Sunday payment collection/distribution",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"cross-env PORT=3001 tsx watch server/src/index.ts\" \"vite client\"",
+    "build": "tsc -p server/tsconfig.json && vite build client",
+    "start": "node server/dist/index.js",
+    "preview": "sh ./scripts/ensure-pg.sh && npm run build && NODE_ENV=production node server/dist/index.js",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx server/src/db/migrate.ts",
+    "seed": "tsx server/src/seed.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.20.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "concurrently": "^9.2.0",
+    "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.5",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.0"
+  }
+}

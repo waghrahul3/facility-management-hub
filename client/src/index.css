@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+
+  /* Onion theme: deep greens, warm husk ambers, field neutrals */
+  --color-onion-50: #f0fdf4;
+  --color-onion-100: #dcfce7;
+  --color-onion-200: #bbf7d0;
+  --color-onion-300: #86efac;
+  --color-onion-400: #4ade80;
+  --color-onion-500: #22c55e;
+  --color-onion-600: #16a34a;
+  --color-onion-700: #15803d;
+  --color-onion-800: #166534;
+  --color-onion-900: #14532d;
+  --color-onion-950: #052e16;
+
+  --color-husk-50: #fefce8;
+  --color-husk-100: #fef9c3;
+  --color-husk-200: #fef08a;
+  --color-husk-300: #fde047;
+  --color-husk-400: #facc15;
+  --color-husk-500: #eab308;
+  --color-husk-600: #ca8a04;
+  --color-husk-700: #a16207;
+
+  --color-field-50: #f8fafc;
+  --color-field-100: #f1f5f9;
+  --color-field-200: #e2e8f0;
+  --color-field-300: #cbd5e1;
+  --color-field-400: #94a3b8;
+  --color-field-500: #64748b;
+  --color-field-600: #475569;
+  --color-field-700: #334155;
+  --color-field-800: #1e293b;
+  --color-field-900: #0f172a;
+  --color-field-950: #020617;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-field-50 text-field-900 font-sans antialiased;
+}
+
+/* Subtle paper texture for the landing/auth areas */
+.app-bg {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 12% 18%, rgba(22, 101, 52, 0.08) 0px, transparent 45%),
+    radial-gradient(at 88% 8%, rgba(234, 179, 8, 0.08) 0px, transparent 40%),
+    radial-gradient(at 78% 88%, rgba(22, 101, 52, 0.06) 0px, transparent 45%);
+}
+
+/* Brand gradient used across the shell and auth hero */
+.brand-gradient {
+  background-image: linear-gradient(135deg, #052e16 0%, #14532d 58%, #166534 100%);
+}
+
+.card-surface {
+  @apply bg-white rounded-2xl border border-field-200 shadow-sm;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.card-surface:hover {
+  box-shadow: 0 12px 32px -16px rgb(2 6 23 / 0.14);
+  border-color: rgb(203 213 225 / 0.9);
+}
+
+/* Motion */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out both;
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+.animate-pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-field-300 rounded-full;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Hide scrollbars on the mobile bottom nav (still scrollable by touch) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

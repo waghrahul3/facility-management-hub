@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "supplier_payments_supplier_week_unique" ON "supplier_payments" USING btree ("supplier_id","week_start_date");

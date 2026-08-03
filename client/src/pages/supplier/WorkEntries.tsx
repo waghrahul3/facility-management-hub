@@ -1,0 +1,102 @@
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../../lib/api";
+import {
+  Badge,
+  Card,
+  EmptyState,
+  Field,
+  Input,
+  LoadingScreen,
+  Money,
+  PageHeader,
+  StatusBadge,
+  Table,
+  Td,
+} from "../../components/ui";
+import { fmtDate, weekStartInput } from "../../lib/format";
+
+interface EntryRow {
+  entry: {
+    id: string;
+    work_date: string;
+    quantity_bags: number;
+    rate_per_bag: number;
+    total_amount: number;
+    status: "DRAFT" | "APPROVED" | "PAID";
+    leader_confirmed_at: string | null;
+  };
+  toli: { id: string; leader_name: string };
+  bagSize: { id: string; size_name: string; weight_kg: number };
+}
+
+export default function SupplierWorkEntriesPage() {
+  const [entries, setEntries] = useState<EntryRow[] | null>(null);
+  const [weekStart, setWeekStart] = useState(weekStartInput());
+
+  const load = useCallback(() => {
+    api<{ entries: EntryRow[] }>(`/supplier/work-entries?weekStart=${weekStart}`).then((r) =>
+      setEntries(r.entries)
+    );
+  }, [weekStart]);
+
+  useEffect(load, [load]);
+
+  const totalWork = (entries ?? []).reduce((s, r) => s + r.entry.total_amount, 0);
+
+  return (
+    <div>
+      <PageHeader
+        title="Work Entries"
+        subtitle="Daily work recorded for the tolis you dropped — view only"
+      />
+
+      <Card className="mb-5">
+        <Field label="Week starting">
+          <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+        </Field>
+      </Card>
+
+      {!entries ? (
+        <LoadingScreen />
+      ) : entries.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="No work entries for your drops"
+            hint="Work recorded against tolis from your drops will appear here"
+          />
+        </Card>
+      ) : (
+        <>
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-onion-200 bg-onion-50 px-4 py-3">
+            <span className="text-sm font-medium text-onion-800">
+              Total work value for your drops this week
+            </span>
+            <Money value={totalWork} className="text-lg font-bold" />
+          </div>
+          <Card>
+            <Table head={["Date", "Toli leader", "Bag size", "Qty", "Rate", "Amount", "Status", "Leader OK"]} empty={null}>
+              {entries.map((r) => (
+                <tr key={r.entry.id} className="hover:bg-field-50/50">
+                  <Td>{fmtDate(r.entry.work_date)}</Td>
+                  <Td className="font-medium text-field-900">{r.toli.leader_name}</Td>
+                  <Td>{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
+                  <Td>{r.entry.quantity_bags}</Td>
+                  <Td><Money value={r.entry.rate_per_bag} /></Td>
+                  <Td className="font-semibold"><Money value={r.entry.total_amount} /></Td>
+                  <Td><StatusBadge status={r.entry.status} /></Td>
+                  <Td>
+                    {r.entry.leader_confirmed_at ? (
+                      <Badge tone="green">Confirmed</Badge>
+                    ) : (
+                      <Badge tone="slate">Pending</Badge>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
