@@ -19,6 +19,8 @@ import PaymentsHistoryPage from "./pages/superadmin/PaymentsHistory";
 import SuppliersPage from "./pages/superadmin/Suppliers";
 import AuditLogPage from "./pages/superadmin/AuditLog";
 import GitHubPage from "./pages/superadmin/GitHub";
+import SubscriptionsPage from "./pages/superadmin/Subscriptions";
+import ReportsPage from "./pages/Reports";
 
 // Company Admin pages
 import CompanyDashboard from "./pages/company/Dashboard";
@@ -89,6 +91,8 @@ function Protected() {
         <Route path="/payments-history" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><PaymentsHistoryPage /></RequireRole>} />
         <Route path="/audit" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><AuditLogPage /></RequireRole>} />
         <Route path="/github" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><GitHubPage /></RequireRole>} />
+        <Route path="/subscriptions" element={<RequireRole user={user} roles={["SUPER_ADMIN"]}><SubscriptionsPage /></RequireRole>} />
+        <Route path="/reports" element={<RequireRole user={user} roles={["SUPER_ADMIN", "COMPANY_ADMIN", "FACILITY_ADMIN", "SUPPLIER", "TOLI_LEADER"]}><ReportsPage /></RequireRole>} />
 
         {/* Company Admin */}
         <Route path="/company/dashboard" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyDashboard /></RequireRole>} />

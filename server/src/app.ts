@@ -3,6 +3,8 @@ import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import { logger, reqLogger, maskBody } from "./lib/logger.js";
 
 import authRoutes from "./routes/auth.js";
 import superAdminRoutes from "./routes/superadmin.js";
@@ -11,6 +13,8 @@ import companyRoutes from "./routes/company.js";
 import facilityRoutes from "./routes/facility.js";
 import supplierRoutes from "./routes/supplier.js";
 import toliLeaderRoutes from "./routes/tolileader.js";
+import reportsRoutes from "./routes/reports.js";
+import subscriptionRoutes from "./routes/subscription.js";
 import { errorMiddleware } from "./lib/errors.js";
 import { config } from "./config.js";
 
@@ -22,11 +26,46 @@ export function createApp() {
   app.use(cors());
   app.use(express.json({ limit: "1mb" }));
 
-  // Request logging (lightweight)
-  app.use((req, _res, next) => {
-    if (config.nodeEnv !== "test") {
-      console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  // Request ID + timing middleware
+  app.use((req, res, next) => {
+    const requestId = randomUUID().slice(0, 8);
+    const start = Date.now();
+    (req as any).requestId = requestId;
+    res.setHeader("X-Request-Id", requestId);
+
+    // Log request body for POST/PUT/DELETE (with sensitive field masking)
+    const methodsWithBody = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+    if (methodsWithBody.has(req.method) && req.body && typeof req.body === "object") {
+      const masked = maskBody(req.body);
+      const bodyKeys = Object.keys(masked as Record<string, unknown>);
+      logger.debug("request body", {
+        requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        bodyKeys,
+        body: masked,
+      });
     }
+
+    // Log response when it finishes
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      const log = reqLogger({
+        requestId,
+        method: req.method,
+        path: req.originalUrl || req.path,
+        statusCode: res.statusCode,
+        durationMs: duration,
+      });
+      if (res.statusCode >= 500) {
+        log.error("request completed");
+      } else if (res.statusCode >= 400) {
+        log.warn("request completed");
+    } else {
+        log.info("request completed");
+      }
+    });
+
     next();
   });
 
@@ -43,6 +82,8 @@ export function createApp() {
   app.use("/api/facility", facilityRoutes);
   app.use("/api/supplier", supplierRoutes);
   app.use("/api/toli-leader", toliLeaderRoutes);
+  app.use("/api/reports", reportsRoutes);
+  app.use("/api/subscriptions", subscriptionRoutes);
 
   // 404 for unknown API routes
   app.use("/api", (_req, res) => {

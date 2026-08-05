@@ -1,4 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { logger } from "./logger.js";
 
 export class HttpError extends Error {
   status: number;
@@ -31,6 +32,6 @@ export function errorMiddleware(
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.message });
   }
-  console.error("Unhandled error:", err);
+  logger.error("Unhandled error", { error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
   return res.status(500).json({ error: "Internal server error" });
 }

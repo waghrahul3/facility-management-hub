@@ -15,6 +15,7 @@ import {
   users,
   weeklyWorkSummaries,
   workEntries,
+  subscriptionPlans,
 } from "./db/schema.js";
 import { hashPassword } from "./auth/password.js";
 import { generateWeeklySummaries, processSupplierPayments } from "./services/payments.js";
@@ -233,6 +234,41 @@ export async function seedDatabase() {
         created_by: superAdmin.id,
       });
       console.log("Created global rate:", def.size_name, "=", def.rate);
+    }
+  }
+
+
+  // -------------------------------------------------------------------------
+  // 5b. Subscription plans (all billing cycles)
+  // -------------------------------------------------------------------------
+  const planDefs = [
+    { name: "Company Monthly", type: "COMPANY", price: 500, billing_cycle: "monthly", description: "Includes 1 facility admin; additional facilities ₹500/mo each" },
+    { name: "Company Quarterly", type: "COMPANY", price: 1350, billing_cycle: "quarterly", description: "3 months of Company plan — save ₹150" },
+    { name: "Company Half-Yearly", type: "COMPANY", price: 2500, billing_cycle: "half-yearly", description: "6 months of Company plan — save ₹500" },
+    { name: "Company Yearly", type: "COMPANY", price: 4500, billing_cycle: "yearly", description: "12 months of Company plan — save ₹1500" },
+    { name: "Supplier Monthly", type: "SUPPLIER", price: 300, billing_cycle: "monthly", description: "Monthly supplier subscription" },
+    { name: "Supplier Quarterly", type: "SUPPLIER", price: 810, billing_cycle: "quarterly", description: "3 months of Supplier plan — save ₹90" },
+    { name: "Supplier Half-Yearly", type: "SUPPLIER", price: 1500, billing_cycle: "half-yearly", description: "6 months of Supplier plan — save ₹300" },
+    { name: "Supplier Yearly", type: "SUPPLIER", price: 2700, billing_cycle: "yearly", description: "12 months of Supplier plan — save ₹900" },
+  ] as const;
+  for (const def of planDefs) {
+    const existing = (
+      await db
+        .select()
+        .from(subscriptionPlans)
+        .where(and(eq(subscriptionPlans.name, def.name), eq(subscriptionPlans.type, def.type)))
+        .limit(1)
+    )[0];
+    if (!existing) {
+      await db.insert(subscriptionPlans).values({
+        name: def.name,
+        type: def.type,
+        price: def.price,
+        billing_cycle: def.billing_cycle,
+        description: def.description,
+        is_active: true,
+      });
+      console.log("Created subscription plan:", def.name);
     }
   }
 

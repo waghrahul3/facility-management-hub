@@ -16,6 +16,7 @@ import {
 import { requireAuth, requireFacilityAccess, requireRole } from "../auth/middleware.js";
 import { audit } from "../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 import { param } from "../lib/params.js";
 import {
   computeSupplierWeekPayment,

@@ -1,6 +1,7 @@
 import { db } from "../db/index.js";
 import { auditLogs } from "../db/schema.js";
 import type { Request } from "express";
+import { logger } from "./logger.js";
 
 export type AuditAction =
   | "CREATE"
@@ -39,6 +40,6 @@ export async function audit(input: AuditInput): Promise<void> {
     });
   } catch (err) {
     // Audit must never break the main flow
-    console.error("audit failed:", err);
+    logger.error("Audit log failed", { action: input.action, entityType: input.entityType, entityId: input.entityId, error: err instanceof Error ? err.message : String(err) });
   }
 }

@@ -1,3 +1,4 @@
+import SubscriptionStatus from "../../components/SubscriptionStatus";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
@@ -61,6 +62,11 @@ export default function SupplierDashboard() {
         <StatCard label="Tolis working" value={data.weekToliCount} tone="blue" icon={<span>👥</span>} />
         <StatCard label="Approved summaries" value={approvedCount} tone="amber" icon={<span>✅</span>} />
         <StatCard label="Net to collect" value={<Money value={week.netPayment} />} tone="violet" icon={<span>💸</span>} />
+      </div>
+
+      {/* Subscription Status */}
+      <div className="mt-6">
+        <SubscriptionStatus />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

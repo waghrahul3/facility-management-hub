@@ -14,6 +14,7 @@ import {
 import { requireAuth, requireRole } from "../auth/middleware.js";
 import { audit } from "../lib/audit.js";
 import { asyncHandler, badRequest, notFound, unauthorized } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 import { param } from "../lib/params.js";
 import {
   collectSupplierPayment,
@@ -109,6 +110,8 @@ router.get(
 router.post(
   "/drops/register",
   asyncHandler(async (req, res) => {
+    const log = reqLogger({ method: "POST", path: "/supplier/supplier-drops" });
+    log.info("Registering supplier drop", { facilityId: req.body?.facility_id, dropDate: req.body?.drop_date, workers: req.body?.total_workers_dropped });
     const { facility_id, drop_date, total_workers_dropped, rent_per_drop } = req.body ?? {};
     if (!facility_id || !drop_date) {
       throw badRequest("facility_id and drop_date are required");

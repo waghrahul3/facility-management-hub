@@ -136,3 +136,35 @@ export const post = <T = unknown>(path: string, body?: unknown) =>
 export const put = <T = unknown>(path: string, body?: unknown) =>
   api<T>(path, { method: "PUT", body });
 export const del = <T = unknown>(path: string) => api<T>(path, { method: "DELETE" });
+
+// --- Report download helpers ---
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadReport(type: string, format: "excel" | "pdf", filters?: Record<string, string>) {
+  const params = new URLSearchParams();
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (v) params.set(k, v);
+    }
+  }
+  const qs = params.toString();
+  const path = `/reports/${type}/${format}${qs ? "?" + qs : ""}`;
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`/api${path}`, { headers });
+  if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`);
+  const blob = await res.blob();
+  const ext = format === "excel" ? "xlsx" : "pdf";
+  downloadBlob(blob, `${type}-report.${ext}`);
+}

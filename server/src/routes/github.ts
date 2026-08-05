@@ -2,6 +2,7 @@ import { Router } from "express";
 import { config } from "../config.js";
 import { requireAuth, requireRole } from "../auth/middleware.js";
 import { asyncHandler, badRequest, HttpError } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 import { audit } from "../lib/audit.js";
 import {
   GitHubError,
@@ -34,13 +35,14 @@ async function ghCall<T>(fn: () => Promise<T>): Promise<T> {
 router.get(
   "/github/status",
   asyncHandler(async (_req, res) => {
+    const log = reqLogger({ method: "GET", path: "/github/status" });
     const token = config.github.token;
 
     let local: Awaited<ReturnType<typeof getLocalRepoInfo>> | null = null;
     try {
       local = await getLocalRepoInfo();
     } catch (err) {
-      console.error("github status: local git check failed", err);
+      log.error("GitHub status: local git check failed", { error: err instanceof Error ? err.message : String(err) });
     }
 
     const status: Record<string, unknown> = {

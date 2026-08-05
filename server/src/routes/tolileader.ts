@@ -12,6 +12,7 @@ import {
 } from "../db/schema.js";
 import { requireAuth, requireRole } from "../auth/middleware.js";
 import { asyncHandler, notFound } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 import { param } from "../lib/params.js";
 import { currentWeek } from "../services/payments.js";
 import { startOfWeek, endOfWeek, dateOnly } from "../lib/date.js";

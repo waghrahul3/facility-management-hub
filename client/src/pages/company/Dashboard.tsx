@@ -15,6 +15,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
+import SubscriptionStatus from "../../components/SubscriptionStatus";
 
 interface CompanyDashboardData {
   company: { id: string; name: string; city: string | null };
@@ -71,68 +72,63 @@ export default function CompanyDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Subscription Status */}
+      <SubscriptionStatus />
+
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Facilities" value={t.facilityCount} tone="green" icon={<span>🏭</span>} />
         <StatCard label="Drops this week" value={t.weekDropCount} tone="blue" icon={<span>🚚</span>} />
         <StatCard label="Tolis" value={t.toliCount} tone="amber" icon={<span>👥</span>} />
         <StatCard label="Pending payments" value={t.pendingPaymentCount} tone="violet" icon={<span>💰</span>} />
       </div>
 
-      <Card
-        title="Facilities"
-        subtitle={`${t.facilityCount} facility${t.facilityCount === 1 ? "" : "s"} under ${data.company.name} · week rent ${`₹${t.weekRentTotal.toLocaleString("en-IN")}`}`}
-        className="mt-6"
-        action={
-          <Link to="/company/facilities">
-            <Button variant="secondary" size="sm">View all</Button>
-          </Link>
-        }
-      >
-        {data.facilityStats.length === 0 ? (
-          <EmptyState title="No facilities yet" hint="Onboard your first facility from the Facilities page" />
-        ) : (
-          <Table head={["Facility", "Drops (week)", "Tolis", "Pending payments", "Status"]} empty={null}>
-            {data.facilityStats.map((r) => (
-              <tr key={r.facility.id} className="hover:bg-field-50/50">
-                <Td className="font-semibold text-field-900">{r.facility.name}</Td>
-                <Td>{r.weekDropCount}</Td>
-                <Td>{r.toliCount}</Td>
-                <Td>
-                  {r.pendingPaymentCount > 0 ? (
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse-soft" />
-                      {r.pendingPaymentCount}
-                    </span>
-                  ) : (
-                    <span className="text-field-400">0</span>
-                  )}
-                </Td>
-                <Td>
-                  {r.facility.is_active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Inactive</Badge>}
-                </Td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Card
+          title="Facilities"
+          subtitle={`${t.facilityCount} facility${t.facilityCount === 1 ? "" : "s"} under ${data.company.name} · week rent ₹${t.weekRentTotal.toLocaleString("en-IN")}`}
+          action={
+            <Link to="/company/facilities">
+              <Button variant="secondary" size="sm">View all</Button>
+            </Link>
+          }
+        >
+          {data.facilityStats.length === 0 ? (
+            <EmptyState icon="🏭" title="No facilities yet" hint="Add your first facility" />
+          ) : (
+            <Table head={["Facility", "Drops", "Tolis", "Pending"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
+              {data.facilityStats.map((fs) => (
+                <tr key={fs.facility.id} className="hover:bg-field-50/50">
+                  <Td className="font-medium">{fs.facility.name}</Td>
+                  <Td>{fs.weekDropCount}</Td>
+                  <Td>{fs.toliCount}</Td>
+                  <Td>
+                    <Badge tone={fs.pendingPaymentCount > 0 ? "amber" : "green"}>
+                      {fs.pendingPaymentCount}
+                    </Badge>
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
 
-      <Card title="Pending supplier payments" subtitle="Payments awaiting collection across your facilities" className="mt-6">
-        {data.pendingPayments.length === 0 ? (
-          <EmptyState title="No pending payments" hint="All settled — great week!" />
-        ) : (
-          <Table head={["Facility", "Supplier", "Week", "Net payment", "Status"]} empty={null}>
-            {data.pendingPayments.map((r) => (
-              <tr key={r.payment.id} className="hover:bg-field-50/50">
-                <Td className="font-medium text-field-800">{r.facility.name}</Td>
-                <Td className="font-semibold text-field-900">{r.supplier.name}</Td>
-                <Td>{fmtDate(r.payment.week_start_date)}</Td>
-                <Td className="font-semibold text-onion-800"><Money value={r.payment.net_payment} /></Td>
-                <Td><StatusBadge status={r.payment.collection_status} /></Td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </Card>
+        <Card title="Pending Payments" subtitle="Sunday collections ready">
+          {data.pendingPayments.length === 0 ? (
+            <EmptyState icon="💰" title="No pending payments" hint="All clear this week" />
+          ) : (
+            <Table head={["Supplier", "Facility", "Amount", "Status"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
+              {data.pendingPayments.map((pp) => (
+                <tr key={pp.payment.id} className="hover:bg-field-50/50">
+                  <Td className="font-medium">{pp.supplier.name}</Td>
+                  <Td>{pp.facility.name}</Td>
+                  <Td><Money value={pp.payment.net_payment} /></Td>
+                  <Td><StatusBadge status={pp.payment.collection_status} /></Td>
+                </tr>
+              ))}
+            </Table>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

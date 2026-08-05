@@ -70,9 +70,19 @@ const icons: Record<string, ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
     </svg>
   ),
+  subscriptions: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+    </svg>
+  ),
   github: (
     <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
       <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.9 1.57 2.36 1.12 2.94.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.7 0 0 .84-.28 2.75 1.05a9.36 9.36 0 015 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.4.2 2.44.1 2.7.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.31.68.93.68 1.88v2.79c0 .27.18.6.69.49A10.26 10.26 0 0022 12.25C22 6.58 17.52 2 12 2z" />
+    </svg>
+  ),
+  reports: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
     </svg>
   ),
 };
@@ -90,13 +100,16 @@ function navItemsFor(user: AuthUser): NavItem[] {
         { to: "/bag-sizes", label: "Bag Sizes", icon: icons.bags },
         { to: "/rates", label: "Rates", icon: icons.rates },
         { to: "/payments-history", label: "Payments", icon: icons.payments },
+        { to: "/reports", label: "Reports", icon: icons.reports },
         { to: "/audit", label: "Audit Log", icon: icons.audit },
         { to: "/github", label: "GitHub", icon: icons.github },
+        { to: "/subscriptions", label: "Subscriptions", icon: icons.subscriptions },
       ];
     case "COMPANY_ADMIN":
       return [
         { to: "/company/dashboard", label: "Dashboard", icon: icons.dashboard },
         { to: "/company/facilities", label: "Facilities", icon: icons.facilities },
+        { to: "/reports", label: "Reports", icon: icons.reports },
       ];
     case "FACILITY_ADMIN":
       return [
@@ -107,6 +120,7 @@ function navItemsFor(user: AuthUser): NavItem[] {
         { to: "/facility/rates", label: "Rates", icon: icons.rates },
         { to: "/facility/approvals", label: "Approvals", icon: icons.work },
         { to: "/facility/payments", label: "Payments", icon: icons.payments },
+        { to: "/reports", label: "Reports", icon: icons.reports },
       ];
     case "SUPPLIER":
       return [
@@ -115,6 +129,7 @@ function navItemsFor(user: AuthUser): NavItem[] {
         { to: "/supplier/work-entries", label: "Work Entries", icon: icons.work },
         { to: "/supplier/payments", label: "Payments", icon: icons.payments },
         { to: "/supplier/payment-history", label: "History", icon: icons.history },
+        { to: "/reports", label: "Reports", icon: icons.reports },
       ];
     case "TOLI_LEADER":
       return [
@@ -123,6 +138,7 @@ function navItemsFor(user: AuthUser): NavItem[] {
         { to: "/leader/today-work", label: "Today's Work", icon: icons.work },
         { to: "/leader/earnings", label: "Earnings", icon: icons.rates },
         { to: "/leader/payments-history", label: "Payments", icon: icons.payments },
+        { to: "/reports", label: "Reports", icon: icons.reports },
       ];
     default:
       return [];

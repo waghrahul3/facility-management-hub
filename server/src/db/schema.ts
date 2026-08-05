@@ -457,3 +457,109 @@ export type WeeklyWorkSummary = typeof weeklyWorkSummaries.$inferSelect;
 export type SupplierPayment = typeof supplierPayments.$inferSelect;
 export type SupplierPaymentDistribution = typeof supplierPaymentDistributions.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Subscriptions & billing
+// ---------------------------------------------------------------------------
+
+export const subscriptionTypeEnum = pgEnum("subscription_type", [
+  "COMPANY",
+  "SUPPLIER",
+]);
+
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "ACTIVE",
+  "EXPIRED",
+  "PENDING",
+  "CANCELLED",
+]);
+
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  type: subscriptionTypeEnum("type").notNull(),
+  price: integer("price").notNull(),
+  billing_cycle: text("billing_cycle").default("monthly").notNull(),
+  description: text("description"),
+  features: jsonb("features"),
+  is_active: boolean("is_active").default(true).notNull(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    plan_id: uuid("plan_id")
+      .notNull()
+      .references(() => subscriptionPlans.id),
+    company_id: uuid("company_id").references(() => companies.id, {
+      onDelete: "set null",
+    }),
+    supplier_id: uuid("supplier_id").references(() => suppliers.id, {
+      onDelete: "set null",
+    }),
+    status: subscriptionStatusEnum("status").default("PENDING").notNull(),
+    start_date: timestamp("start_date", { withTimezone: true }).notNull(),
+    end_date: timestamp("end_date", { withTimezone: true }).notNull(),
+    auto_renew: boolean("auto_renew").default(true),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("subscriptions_company_idx").on(t.company_id),
+    index("subscriptions_supplier_idx").on(t.supplier_id),
+    index("subscriptions_status_idx").on(t.status),
+  ]
+);
+
+export const subscriptionPayments = pgTable(
+  "subscription_payments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    subscription_id: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id),
+    amount: integer("amount").notNull(),
+    payment_date: timestamp("payment_date", { withTimezone: true }).notNull(),
+    payment_method: text("payment_method").default("CASH").notNull(),
+    reference_number: text("reference_number"),
+    notes: text("notes"),
+    recorded_by: uuid("recorded_by").references(() => users.id),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("sub_payments_subscription_idx").on(t.subscription_id),
+  ]
+);
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Renewal tracking
+// ---------------------------------------------------------------------------
+
+export const subscriptionRenewals = pgTable(
+  "subscription_renewals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    subscription_id: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id),
+    previous_start: timestamp("previous_start", { withTimezone: true }).notNull(),
+    previous_end: timestamp("previous_end", { withTimezone: true }).notNull(),
+    new_start: timestamp("new_start", { withTimezone: true }).notNull(),
+    new_end: timestamp("new_end", { withTimezone: true }).notNull(),
+    renewed_by: uuid("renewed_by").references(() => users.id),
+    notes: text("notes"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("renewals_subscription_idx").on(t.subscription_id),
+  ]
+);
+
+export type SubscriptionRenewal = typeof subscriptionRenewals.$inferSelect;

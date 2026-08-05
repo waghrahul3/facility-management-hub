@@ -15,6 +15,7 @@ import { requireAuth, requireRole } from "../auth/middleware.js";
 import { hashPassword } from "../auth/password.js";
 import { audit, type AuditAction } from "../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 import { param } from "../lib/params.js";
 
 const router = Router();
@@ -75,6 +76,8 @@ router.get(
 router.post(
   "/companies",
   asyncHandler(async (req, res) => {
+    const log = reqLogger({ method: "POST", path: "/super-admin/companies" });
+    log.info("Creating company", { name: req.body?.name });
     const { name, contact_person, email, phone, address, city, admin } = req.body ?? {};
     if (!name) throw badRequest("name is required");
 

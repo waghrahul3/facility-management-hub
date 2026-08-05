@@ -8,6 +8,7 @@ import { verifyPassword } from "../auth/password.js";
 import { requireAuth } from "../auth/middleware.js";
 import { audit } from "../lib/audit.js";
 import { asyncHandler, badRequest, unauthorized } from "../lib/errors.js";
+import { logger, reqLogger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -96,6 +97,8 @@ router.post(
   "/login",
   asyncHandler(async (req, res) => {
     const { emailOrPhone, password } = req.body ?? {};
+    const log = reqLogger({ method: req.method, path: req.originalUrl });
+    log.info("Login attempt", { emailOrPhone });
     if (!emailOrPhone || !password) {
       throw badRequest("emailOrPhone and password are required");
     }
@@ -114,6 +117,7 @@ router.post(
     )[0];
 
     if (!user || !(await verifyPassword(password, user.password_hash))) {
+      log.warn("Login failed: invalid credentials", { emailOrPhone });
       throw unauthorized("Invalid credentials");
     }
 
@@ -127,6 +131,7 @@ router.post(
       entityId: user.id,
     });
 
+    log.info("Login successful", { userId: user.id, role: user.role });
     return res.json({
       accessToken,
       refreshToken,
@@ -142,8 +147,13 @@ router.post(
     const { refreshToken } = req.body ?? {};
     if (!refreshToken) throw badRequest("refreshToken is required");
 
+    const log = reqLogger({ method: req.method, path: req.originalUrl });
+    log.info("Token refresh attempt");
     const payload = verifyRefreshToken(refreshToken);
-    if (!payload) throw unauthorized("Invalid refresh token");
+    if (!payload) {
+      log.warn("Token refresh failed: invalid token");
+      throw unauthorized("Invalid refresh token");
+    }
 
     const stored = (
       await db
@@ -160,6 +170,7 @@ router.post(
     )[0];
 
     if (!stored || stored.expires_at < new Date()) {
+      log.warn("Token refresh failed: expired or revoked");
       throw unauthorized("Refresh token expired or revoked");
     }
 
@@ -174,6 +185,7 @@ router.post(
       .set({ revoked_at: new Date() })
       .where(eq(refreshTokens.id, stored.id));
 
+    log.info("Token refresh successful", { userId: user.id });
     const tokens = await issueTokens(user);
     return res.json({ ...tokens, user: await buildUserProfile(user) });
   })
