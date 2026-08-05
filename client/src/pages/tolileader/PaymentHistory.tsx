@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Card,
   EmptyState,
@@ -11,6 +12,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface Distribution {
   id: string;
@@ -21,6 +23,7 @@ interface Distribution {
 }
 
 export default function LeaderPaymentHistoryPage() {
+  const { t } = useI18n();
   const [distributions, setDistributions] = useState<Distribution[] | null>(null);
 
   useEffect(() => {
@@ -29,19 +32,23 @@ export default function LeaderPaymentHistoryPage() {
     );
   }, []);
 
-  if (!distributions) return <LoadingScreen label="Loading payment history…" />;
+  if (!distributions) return <LoadingScreen label={t("Loading payment history…")} />;
 
   return (
     <div>
-      <PageHeader title="Payment History" subtitle="Amounts distributed to your toli by the supplier" />
+      <PageHeader
+        title={t("Payment History")}
+        subtitle={t("Amounts distributed to your toli by the supplier")}
+        action={<ExportButtons reportType="distributions" />}
+      />
 
       {distributions.length === 0 ? (
         <Card>
-          <EmptyState title="No payments yet" hint="Distributions appear after Sunday settlement" />
+          <EmptyState title={t("No payments yet")} hint={t("Distributions appear after Sunday settlement")} />
         </Card>
       ) : (
         <Card>
-          <Table head={["Date", "Method", "Amount", "Notes"]} empty={null}>
+          <Table head={[t("Date"), t("Method"), t("Amount"), t("Notes")]} empty={null}>
             {distributions.map((d) => (
               <tr key={d.id} className="hover:bg-field-50/50">
                 <Td>{fmtDate(d.distribution_date)}</Td>

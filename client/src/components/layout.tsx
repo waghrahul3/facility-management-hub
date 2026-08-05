@@ -2,6 +2,8 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "../lib/auth";
 import type { AuthUser } from "../lib/api";
+import { useI18n } from "../i18n";
+import { LanguagePicker } from "../pages/LoginPage";
 
 interface NavItem {
   to: string;
@@ -85,60 +87,74 @@ const icons: Record<string, ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
     </svg>
   ),
+  loading: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+    </svg>
+  ),
+  sales: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+    </svg>
+  ),
 };
 
-function navItemsFor(user: AuthUser): NavItem[] {
+function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
   switch (user.role) {
     case "SUPER_ADMIN":
       return [
-        { to: "/dashboard", label: "Dashboard", icon: icons.dashboard },
-        { to: "/companies", label: "Companies", icon: icons.companies },
-        { to: "/facilities", label: "Facilities", icon: icons.facilities },
-        { to: "/facility-admins", label: "Admins", icon: icons.team },
-        { to: "/company-admins", label: "Company Admins", icon: icons.team },
-        { to: "/suppliers", label: "Suppliers", icon: icons.suppliers },
-        { to: "/bag-sizes", label: "Bag Sizes", icon: icons.bags },
-        { to: "/rates", label: "Rates", icon: icons.rates },
-        { to: "/payments-history", label: "Payments", icon: icons.payments },
-        { to: "/reports", label: "Reports", icon: icons.reports },
-        { to: "/audit", label: "Audit Log", icon: icons.audit },
-        { to: "/github", label: "GitHub", icon: icons.github },
-        { to: "/subscriptions", label: "Subscriptions", icon: icons.subscriptions },
+        { to: "/dashboard", label: t("Dashboard"), icon: icons.dashboard },
+        { to: "/companies", label: t("Companies"), icon: icons.companies },
+        { to: "/facilities", label: t("Facilities"), icon: icons.facilities },
+        { to: "/facility-admins", label: t("Admins"), icon: icons.team },
+        { to: "/company-admins", label: t("Company Admins"), icon: icons.team },
+        { to: "/suppliers", label: t("Suppliers"), icon: icons.suppliers },
+        { to: "/bag-sizes", label: t("Bag Sizes"), icon: icons.bags },
+        { to: "/rates", label: t("Rates"), icon: icons.rates },
+        { to: "/payments-history", label: t("Payments"), icon: icons.payments },
+        { to: "/reports", label: t("Reports"), icon: icons.reports },
+        { to: "/audit", label: t("Audit Log"), icon: icons.audit },
+        { to: "/github", label: t("GitHub"), icon: icons.github },
+        { to: "/subscriptions", label: t("Subscriptions"), icon: icons.subscriptions },
       ];
     case "COMPANY_ADMIN":
       return [
-        { to: "/company/dashboard", label: "Dashboard", icon: icons.dashboard },
-        { to: "/company/facilities", label: "Facilities", icon: icons.facilities },
-        { to: "/reports", label: "Reports", icon: icons.reports },
+        { to: "/company/dashboard", label: t("Dashboard"), icon: icons.dashboard },
+        { to: "/company/facilities", label: t("Facilities"), icon: icons.facilities },
+        { to: "/company/buyers", label: t("Buyers"), icon: icons.team },
+        { to: "/company/orders", label: t("Sales Orders"), icon: icons.sales },
+        { to: "/reports", label: t("Reports"), icon: icons.reports },
       ];
     case "FACILITY_ADMIN":
       return [
-        { to: "/facility/dashboard", label: "Dashboard", icon: icons.dashboard },
-        { to: "/facility/drops", label: "Drops", icon: icons.drops },
-        { to: "/facility/tolis", label: "Tolis", icon: icons.team },
-        { to: "/facility/work-entries", label: "Work", icon: icons.work },
-        { to: "/facility/rates", label: "Rates", icon: icons.rates },
-        { to: "/facility/approvals", label: "Approvals", icon: icons.work },
-        { to: "/facility/payments", label: "Payments", icon: icons.payments },
-        { to: "/reports", label: "Reports", icon: icons.reports },
+        { to: "/facility/dashboard", label: t("Dashboard"), icon: icons.dashboard },
+        { to: "/facility/loading", label: t("Loading"), icon: icons.loading },
+        { to: "/facility/sales", label: t("Sales Orders"), icon: icons.sales },
+        { to: "/facility/drops", label: t("Drops"), icon: icons.drops },
+        { to: "/facility/tolis", label: t("Tolis"), icon: icons.team },
+        { to: "/facility/work-entries", label: t("Work"), icon: icons.work },
+        { to: "/facility/rates", label: t("Rates"), icon: icons.rates },
+        { to: "/facility/approvals", label: t("Approvals"), icon: icons.work },
+        { to: "/facility/payments", label: t("Payments"), icon: icons.payments },
+        { to: "/reports", label: t("Reports"), icon: icons.reports },
       ];
     case "SUPPLIER":
       return [
-        { to: "/supplier/dashboard", label: "Dashboard", icon: icons.dashboard },
-        { to: "/supplier/drops", label: "My Drops", icon: icons.drops },
-        { to: "/supplier/work-entries", label: "Work Entries", icon: icons.work },
-        { to: "/supplier/payments", label: "Payments", icon: icons.payments },
-        { to: "/supplier/payment-history", label: "History", icon: icons.history },
-        { to: "/reports", label: "Reports", icon: icons.reports },
+        { to: "/supplier/dashboard", label: t("Dashboard"), icon: icons.dashboard },
+        { to: "/supplier/drops", label: t("My Drops"), icon: icons.drops },
+        { to: "/supplier/work-entries", label: t("Work Entries"), icon: icons.work },
+        { to: "/supplier/payments", label: t("Payments"), icon: icons.payments },
+        { to: "/supplier/payment-history", label: t("History"), icon: icons.history },
+        { to: "/reports", label: t("Reports"), icon: icons.reports },
       ];
     case "TOLI_LEADER":
       return [
-        { to: "/leader/dashboard", label: "Dashboard", icon: icons.dashboard },
-        { to: "/leader/my-toli", label: "My Toli", icon: icons.team },
-        { to: "/leader/today-work", label: "Today's Work", icon: icons.work },
-        { to: "/leader/earnings", label: "Earnings", icon: icons.rates },
-        { to: "/leader/payments-history", label: "Payments", icon: icons.payments },
-        { to: "/reports", label: "Reports", icon: icons.reports },
+        { to: "/leader/dashboard", label: t("Dashboard"), icon: icons.dashboard },
+        { to: "/leader/my-toli", label: t("My Toli"), icon: icons.team },
+        { to: "/leader/today-work", label: t("Today's Work"), icon: icons.work },
+        { to: "/leader/earnings", label: t("Earnings"), icon: icons.rates },
+        { to: "/leader/payments-history", label: t("Payments"), icon: icons.payments },
+        { to: "/reports", label: t("Reports"), icon: icons.reports },
       ];
     default:
       return [];
@@ -154,15 +170,16 @@ const roleLabels: Record<AuthUser["role"], string> = {
 };
 
 function Brand() {
+  const { t } = useI18n();
   return (
     <Link to="/dashboard" className="group flex items-center gap-2.5">
       <span className="brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-lg shadow-sm shadow-onion-900/20 ring-1 ring-white/20 transition-transform duration-200 group-hover:scale-105">
         🧅
       </span>
       <span className="leading-tight">
-        <span className="block font-display text-sm font-bold text-field-900">Onion Facility</span>
+        <span className="block font-display text-sm font-bold text-field-900">{t("Onion Facility")}</span>
         <span className="block text-[10px] font-medium uppercase tracking-widest text-field-400">
-          Center
+          {t("Center")}
         </span>
       </span>
     </Link>
@@ -170,6 +187,7 @@ function Brand() {
 }
 
 function UserChip({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2.5 rounded-xl border border-field-200 bg-white px-3 py-2 transition-colors duration-150 hover:border-field-300">
       <span className="brand-gradient flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ring-1 ring-white/20">
@@ -182,12 +200,12 @@ function UserChip({ user, onLogout }: { user: AuthUser; onLogout: () => void }) 
       <div className="min-w-0 leading-tight">
         <p className="truncate text-xs font-semibold text-field-800">{user.name}</p>
         <p className="text-[10px] font-medium uppercase tracking-wide text-field-400">
-          {roleLabels[user.role]}
+          {t(roleLabels[user.role])}
         </p>
       </div>
       <button
         onClick={onLogout}
-        title="Log out"
+        title={t("Log out")}
         className="ml-1 rounded-lg p-1.5 text-field-400 hover:bg-red-50 hover:text-red-600"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -200,9 +218,10 @@ function UserChip({ user, onLogout }: { user: AuthUser; onLogout: () => void }) 
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const location = useLocation();
   if (!user) return null;
-  const items = navItemsFor(user);
+  const items = navItemsFor(user, t);
 
   return (
     <div className="min-h-screen">
@@ -217,10 +236,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           <p className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-widest text-field-400">
             {user.companyName
-              ? `${roleLabels[user.role]} · ${user.companyName}`
+              ? `${t(roleLabels[user.role])} · ${user.companyName}`
               : user.facilityName
-                ? `${roleLabels[user.role]} · ${user.facilityName}`
-                : roleLabels[user.role]}
+                ? `${t(roleLabels[user.role])} · ${user.facilityName}`
+                : t(roleLabels[user.role])}
           </p>
           {items.map((item) => (
             <NavLink
@@ -244,22 +263,31 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-field-100 p-3">
+          <div className="mb-2 flex items-center justify-between rounded-xl bg-field-50 px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-field-400">
+              {t("Language")}
+            </span>
+            <LanguagePicker />
+          </div>
           <UserChip user={user} onLogout={logout} />
         </div>
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-field-200 bg-white/90 px-4 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-field-200 bg-white/90 px-4 backdrop-blur lg:hidden">
         <Brand />
-        <button
-          onClick={logout}
-          className="rounded-lg p-2 text-field-400 hover:bg-red-50 hover:text-red-600"
-          title="Log out"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <LanguagePicker />
+          <button
+            onClick={logout}
+            className="rounded-lg p-2 text-field-400 hover:bg-red-50 hover:text-red-600"
+            title={t("Log out")}
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Main content */}

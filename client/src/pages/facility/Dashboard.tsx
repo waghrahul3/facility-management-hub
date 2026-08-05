@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -32,6 +33,7 @@ interface DashboardData {
 
 export default function FacilityDashboard() {
   const { facilityId, base } = useFacilityScope();
+  const { t } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function FacilityDashboard() {
     api<DashboardData>(`/facility/${facilityId}/dashboard`).then(setData);
   }, [facilityId]);
 
-  if (!data) return <LoadingScreen label="Loading facility overview…" />;
+  if (!data) return <LoadingScreen label={t("Loading facility overview…")} />;
 
   return (
     <div>
@@ -52,26 +54,26 @@ export default function FacilityDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Drops this week" value={data.weekDropCount} tone="green" icon={<span>🚛</span>} />
-        <StatCard label="Active tolis" value={data.toliCount} tone="blue" icon={<span>👥</span>} />
-        <StatCard label="Pending approvals" value={data.pendingSummaryCount} tone="amber" icon={<span>📋</span>} />
-        <StatCard label="Week rent charges" value={<Money value={data.weekRentTotal} />} tone="violet" icon={<span>🧾</span>} />
+        <StatCard label={t("Drops this week")} value={data.weekDropCount} tone="green" icon={<span>🚛</span>} />
+        <StatCard label={t("Active tolis")} value={data.toliCount} tone="blue" icon={<span>👥</span>} />
+        <StatCard label={t("Pending approvals")} value={data.pendingSummaryCount} tone="amber" icon={<span>📋</span>} />
+        <StatCard label={t("Week rent charges")} value={<Money value={data.weekRentTotal} />} tone="violet" icon={<span>🧾</span>} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card
-          title="Pending supplier payments"
-          subtitle={`Week of ${fmtDate(data.weekStart)}`}
-          action={<Link to={`${base}/payments`}><Button variant="secondary" size="sm">Process</Button></Link>}
+          title={t("Pending supplier payments")}
+          subtitle={t("Week of {date}", { date: fmtDate(data.weekStart) })}
+          action={<Link to={`${base}/payments`}><Button variant="secondary" size="sm">{t("Process")}</Button></Link>}
         >
           {data.pendingPayments.length === 0 ? (
-            <EmptyState title="No pending payments" hint="Process Sunday payments when approved summaries exist" />
+            <EmptyState title={t("No pending payments")} hint={t("Process Sunday payments when approved summaries exist")} />
           ) : (
             <div className="divide-y divide-field-100">
               {data.pendingPayments.map((p) => (
                 <div key={p.id} className="flex items-center justify-between py-3">
                   <div>
-                    <p className="text-sm font-semibold text-field-800">Supplier payment</p>
+                    <p className="text-sm font-semibold text-field-800">{t("Supplier payment")}</p>
                     <p className="text-xs text-field-500"><Badge tone="amber">PENDING</Badge></p>
                   </div>
                   <Money value={p.net_payment} className="text-sm" />
@@ -81,12 +83,12 @@ export default function FacilityDashboard() {
           )}
         </Card>
 
-        <Card title="Quick actions">
+        <Card title={t("Quick actions")}>
           <div className="grid grid-cols-2 gap-3">
-            <Link to={`${base}/drops`}><Button variant="secondary" className="w-full">Register drop</Button></Link>
-            <Link to={`${base}/tolis`}><Button variant="secondary" className="w-full">Create toli</Button></Link>
-            <Link to={`${base}/work-entries`}><Button variant="secondary" className="w-full">Record work</Button></Link>
-            <Link to={`${base}/approvals`}><Button variant="secondary" className="w-full">Approve week</Button></Link>
+            <Link to={`${base}/drops`}><Button variant="secondary" className="w-full">{t("Register drop")}</Button></Link>
+            <Link to={`${base}/tolis`}><Button variant="secondary" className="w-full">{t("Create toli")}</Button></Link>
+            <Link to={`${base}/work-entries`}><Button variant="secondary" className="w-full">{t("Record work")}</Button></Link>
+            <Link to={`${base}/approvals`}><Button variant="secondary" className="w-full">{t("Approve week")}</Button></Link>
           </div>
         </Card>
       </div>

@@ -417,7 +417,7 @@ router.post(
   "/:facilityId/work-entries",
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
-    const { toli_id, work_date, bag_size_id, quantity_bags, notes } = req.body ?? {};
+    const { toli_id, work_date, bag_size_id, quantity_bags, onion_category, notes } = req.body ?? {};
     if (!toli_id || !work_date || !bag_size_id || quantity_bags == null) {
       throw badRequest("toli_id, work_date, bag_size_id and quantity_bags are required");
     }
@@ -437,6 +437,7 @@ router.post(
         quantity_bags,
         rate_per_bag: rate,
         total_amount: rate * quantity_bags,
+        onion_category: onion_category || null,
         notes: notes ?? null,
       })
       .returning();
@@ -469,7 +470,7 @@ router.put(
     )[0];
     if (!existing) throw notFound("Work entry not found");
 
-    const { quantity_bags, notes, status } = req.body ?? {};
+    const { quantity_bags, onion_category, notes, status } = req.body ?? {};
     // Paid entries are locked after the Sunday payment settlement
     if (existing.status === "PAID" && status && status !== "PAID") {
       throw badRequest("Paid work entries are locked after payment settlement");
@@ -490,6 +491,8 @@ router.put(
         quantity_bags: quantity_bags ?? existing.quantity_bags,
         rate_per_bag: rate,
         total_amount: (quantity_bags ?? existing.quantity_bags) * rate,
+        onion_category:
+          onion_category !== undefined ? onion_category || null : existing.onion_category,
         notes: notes !== undefined ? notes : existing.notes,
         status: status ?? existing.status,
         updated_at: new Date(),

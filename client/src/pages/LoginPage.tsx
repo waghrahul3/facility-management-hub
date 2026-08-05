@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../i18n";
 import { Button, Field, Input } from "../components/ui";
 
 const demoAccounts = [
@@ -10,29 +11,6 @@ const demoAccounts = [
   { role: "Facility Admin", email: "admin@onionfacility.local" },
   { role: "Supplier", email: "rohidas@onionfacility.local" },
   { role: "Toli Leader", email: "mahesh@onionfacility.local" },
-];
-
-const features = [
-  {
-    icon: "🚚",
-    title: "Supplier drops",
-    text: "Register drops with negotiated rent per drop.",
-  },
-  {
-    icon: "🧑‍🌾",
-    title: "Toli work recording",
-    text: "Gridding, packaging & bagging per bag size.",
-  },
-  {
-    icon: "💵",
-    title: "Sunday settlements",
-    text: "Earnings minus rent, collected & distributed.",
-  },
-  {
-    icon: "📊",
-    title: "Multi-facility",
-    text: "Every center you run, on one platform.",
-  },
 ];
 
 function homeFor(role: string): string {
@@ -52,8 +30,44 @@ function homeFor(role: string): string {
   }
 }
 
+/** Compact English / Marathi toggle used at sign-in and in the app shell. */
+export function LanguagePicker({ className = "" }: { className?: string }) {
+  const { lang, setLang, t } = useI18n();
+  return (
+    <div
+      className={`inline-flex items-center gap-0.5 rounded-full border border-field-200 bg-white/80 p-0.5 text-xs font-semibold shadow-sm backdrop-blur ${className}`}
+      role="group"
+      aria-label={t("Language")}
+    >
+      <button
+        type="button"
+        onClick={() => setLang("en")}
+        className={`rounded-full px-3 py-1 transition-all duration-150 ${
+          lang === "en"
+            ? "bg-onion-700 text-white shadow-sm"
+            : "text-field-500 hover:text-field-800"
+        }`}
+      >
+        EN
+      </button>
+      <button
+        type="button"
+        onClick={() => setLang("mr")}
+        className={`rounded-full px-3 py-1 transition-all duration-150 ${
+          lang === "mr"
+            ? "bg-onion-700 text-white shadow-sm"
+            : "text-field-500 hover:text-field-800"
+        }`}
+      >
+        मराठी
+      </button>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const { user, login } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +84,7 @@ export default function LoginPage() {
       const u = await login(emailOrPhone.trim(), password);
       navigate(homeFor(u.role), { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : t("Login failed"));
     } finally {
       setBusy(false);
     }
@@ -104,25 +118,46 @@ export default function LoginPage() {
             </span>
             <div className="leading-tight">
               <p className="font-display text-lg font-bold text-white">
-                Onion Facility Center
+                {t("Onion Facility Center")}
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/60">
-                Management Suite
+                {t("Management Suite")}
               </p>
             </div>
           </div>
 
           <div>
             <h1 className="max-w-md font-display text-4xl font-bold leading-tight text-white xl:text-5xl">
-              One field-to-payment platform for your onion centers.
+              {t("One field-to-payment platform for your onion centers.")}
             </h1>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
-              Register supplier drops, track daily toli work, and settle Sunday
-              payments — earnings minus rent — with full transparency for
-              suppliers, leaders, and admins.
+              {t(
+                "Register supplier drops, track daily toli work, and settle Sunday payments — earnings minus rent — with full transparency for suppliers, leaders, and admins."
+              )}
             </p>
             <div className="mt-8 grid max-w-md grid-cols-2 gap-3">
-              {features.map((f, i) => (
+              {[
+                {
+                  icon: "🚚",
+                  title: t("Supplier drops"),
+                  text: t("Register drops with negotiated rent per drop."),
+                },
+                {
+                  icon: "🧑‍🌾",
+                  title: t("Toli work recording"),
+                  text: t("Gridding, packaging & bagging per bag size."),
+                },
+                {
+                  icon: "💵",
+                  title: t("Sunday settlements"),
+                  text: t("Earnings minus rent, collected & distributed."),
+                },
+                {
+                  icon: "📊",
+                  title: t("Multi-facility"),
+                  text: t("Every center you run, on one platform."),
+                },
+              ].map((f, i) => (
                 <div
                   key={f.title}
                   className="animate-fade-up rounded-2xl bg-white/5 p-4 ring-1 ring-white/10 backdrop-blur transition-colors duration-150 hover:bg-white/10"
@@ -149,29 +184,38 @@ export default function LoginPage() {
       {/* ------------------------------------------------------------ */}
       <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md animate-fade-up">
+          {/* Language picker (shown at sign-in so users pick before logging in) */}
+          <div className="mb-6 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-field-400">
+              {t("Language")}
+            </p>
+            <LanguagePicker />
+          </div>
+
           {/* Brand (mobile only) */}
           <div className="mb-8 flex flex-col items-center text-center lg:hidden">
             <span className="brand-gradient flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg shadow-onion-900/20 ring-1 ring-white/20">
               🧅
             </span>
             <h1 className="mt-4 font-display text-2xl font-bold text-field-900">
-              Onion Facility Center
+              {t("Onion Facility Center")}
             </h1>
             <p className="mt-1 max-w-xs text-sm text-field-500">
-              Drops, toli work recording, and Sunday payment settlements — all in
-              one place.
+              {t(
+                "Drops, toli work recording, and Sunday payment settlements — all in one place."
+              )}
             </p>
           </div>
 
           {/* Sign-in card */}
           <div className="card-surface p-6 sm:p-8">
-            <h2 className="font-display text-lg font-bold text-field-900">Sign in</h2>
+            <h2 className="font-display text-lg font-bold text-field-900">{t("Sign in")}</h2>
             <p className="mb-5 mt-0.5 text-xs text-field-500">
-              Use your facility email or phone number
+              {t("Use your facility email or phone number")}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="Email or phone">
+              <Field label={t("Email or phone")}>
                 <Input
                   type="text"
                   value={emailOrPhone}
@@ -181,7 +225,7 @@ export default function LoginPage() {
                   required
                 />
               </Field>
-              <Field label="Password">
+              <Field label={t("Password")}>
                 <Input
                   type="password"
                   value={password}
@@ -199,7 +243,7 @@ export default function LoginPage() {
               )}
 
               <Button type="submit" size="lg" loading={busy} className="w-full">
-                {busy ? "Signing in…" : "Sign in"}
+                {busy ? t("Signing in…") : t("Sign in")}
               </Button>
             </form>
           </div>
@@ -207,7 +251,7 @@ export default function LoginPage() {
           {/* Demo accounts */}
           <div className="mt-6 rounded-2xl border border-dashed border-field-300 bg-white/70 p-4 backdrop-blur">
             <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-widest text-field-400">
-              Demo accounts · password{" "}
+              {t("Demo accounts")} · {t("password")}{" "}
               <span className="text-onion-700">Onion@123</span>
             </p>
             <div className="grid grid-cols-2 gap-1.5">
@@ -221,7 +265,7 @@ export default function LoginPage() {
                   className="rounded-lg border border-field-200 bg-white px-2 py-1.5 text-left transition-all duration-150 hover:-translate-y-px hover:border-onion-400 hover:bg-onion-50 hover:shadow-sm"
                 >
                   <span className="block text-[10px] font-semibold uppercase tracking-wide text-onion-700">
-                    {d.role}
+                    {t(d.role)}
                   </span>
                   <span className="block truncate text-[11px] text-field-500">
                     {d.email}
@@ -232,8 +276,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-6 text-center text-[11px] text-field-400">
-            Multi-facility onion processing management · Local PostgreSQL · JWT
-            secured
+            {t("Multi-facility onion processing management · Local PostgreSQL · JWT secured")}
           </p>
         </div>
       </div>

@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api, post, put, del } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../i18n";
 import { fmtDate } from "../../lib/format";
 import {
   Badge,
@@ -51,6 +52,7 @@ const emptyAdminForm = { name: "", email: "", phone: "", password: "" };
 
 export default function CompanyFacilitiesPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const cid = user?.companyId;
   const [rows, setRows] = useState<FacilityRow[] | null>(null);
   const [admins, setAdmins] = useState<FacilityAdminRow[]>([]);
@@ -111,7 +113,7 @@ export default function CompanyFacilitiesPage() {
       };
       if (editingFacility) {
         await put(`/company/${cid}/facilities/${editingFacility.id}`, body);
-        setNotice({ kind: "success", text: `Facility “${facilityForm.name}” updated.` });
+        setNotice({ kind: "success", text: t("Facility “{name}” updated.", { name: facilityForm.name }) });
       } else {
         await post(`/company/${cid}/facilities`, {
           ...body,
@@ -123,28 +125,28 @@ export default function CompanyFacilitiesPage() {
         setNotice({
           kind: "success",
           text: adminForm.name
-            ? `Facility “${facilityForm.name}” onboarded with admin ${adminForm.email}.`
-            : `Facility “${facilityForm.name}” onboarded.`,
+            ? t("Facility “{name}” onboarded with admin {email}.", { name: facilityForm.name, email: adminForm.email })
+            : t("Facility “{name}” onboarded.", { name: facilityForm.name }),
         });
       }
       setShowFacilityModal(false);
       load();
     } catch (err) {
-      setNotice({ kind: "error", text: err instanceof Error ? err.message : "Failed to save facility" });
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to save facility") });
     } finally {
       setBusy(false);
     }
   }
 
   async function deleteFacility(f: FacilityRow["facility"]) {
-    if (!confirm(`Delete facility “${f.name}”? This also removes its rates and supplier drops.`)) return;
+    if (!confirm(t("Delete facility “{name}”? This also removes its rates and supplier drops.", { name: f.name }))) return;
     setNotice(null);
     try {
       await del(`/company/${cid}/facilities/${f.id}`);
-      setNotice({ kind: "success", text: `Facility “${f.name}” deleted.` });
+      setNotice({ kind: "success", text: t("Facility “{name}” deleted.", { name: f.name }) });
       load();
     } catch (err) {
-      setNotice({ kind: "error", text: err instanceof Error ? err.message : "Failed to delete facility" });
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to delete facility") });
     }
   }
 
@@ -166,29 +168,29 @@ export default function CompanyFacilitiesPage() {
         password: addAdminForm.password,
         facilityId: adminFacilityId,
       });
-      setNotice({ kind: "success", text: `Facility admin ${addAdminForm.email} created.` });
+      setNotice({ kind: "success", text: t("Facility admin {email} created.", { email: addAdminForm.email }) });
       setShowAdminModal(false);
       load();
     } catch (err) {
-      setNotice({ kind: "error", text: err instanceof Error ? err.message : "Failed to create admin" });
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to create admin") });
     } finally {
       setAdminBusy(false);
     }
   }
 
-  if (!rows) return <LoadingScreen label="Loading facilities…" />;
+  if (!rows) return <LoadingScreen label={t("Loading facilities…")} />;
 
   return (
     <div>
       <PageHeader
-        title="Facilities"
-        subtitle="Onboard your facilities and facility admins, then run each facility directly."
+        title={t("Facilities")}
+        subtitle={t("Onboard your facilities and facility admins, then run each facility directly.")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => setShowAdminModal(true)}>
-              + Add facility admin
+              {t("+ Add facility admin")}
             </Button>
-            <Button onClick={openAddFacility}>+ Onboard facility</Button>
+            <Button onClick={openAddFacility}>{t("+ Onboard facility")}</Button>
           </div>
         }
       />
@@ -208,14 +210,14 @@ export default function CompanyFacilitiesPage() {
       {rows.length === 0 ? (
         <Card>
           <EmptyState
-            title="No facilities yet"
-            hint="Onboard your first facility — you can create its admin right away"
+            title={t("No facilities yet")}
+            hint={t("Onboard your first facility — you can create its admin right away")}
           />
         </Card>
       ) : (
         <Card>
           <Table
-            head={["Facility", "Location", "Capacity", "Admin", "Status", "Actions"]}
+            head={[t("Facility"), t("Location"), t("Capacity"), t("Admin"), t("Status"), t("Actions")]}
             empty={null}
           >
             {rows.map((r) => (
@@ -225,7 +227,7 @@ export default function CompanyFacilitiesPage() {
                   {r.facility.location}
                   {r.facility.city ? <span className="text-field-400"> · {r.facility.city}</span> : null}
                 </Td>
-                <Td>{r.facility.capacity ?? 0} workers</Td>
+                <Td>{t("{n} workers", { n: r.facility.capacity ?? 0 })}</Td>
                 <Td>
                   {r.admin ? (
                     <span>
@@ -237,21 +239,21 @@ export default function CompanyFacilitiesPage() {
                   )}
                 </Td>
                 <Td>
-                  {r.facility.is_active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Inactive</Badge>}
+                  {r.facility.is_active ? <Badge tone="green">{t("Active")}</Badge> : <Badge tone="red">{t("Inactive")}</Badge>}
                 </Td>
                 <Td>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Link to={`/company/facility/${r.facility.id}/dashboard`}>
-                      <Button size="sm" variant="success">Manage</Button>
+                      <Button size="sm" variant="success">{t("Manage")}</Button>
                     </Link>
                     <Button size="sm" variant="secondary" onClick={() => openAddAdmin(r.facility.id)}>
-                      Admin
+                      {t("Admin")}
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => openEditFacility(r.facility)}>
-                      Edit
+                      {t("Edit")}
                     </Button>
                     <Button size="sm" variant="danger" onClick={() => deleteFacility(r.facility)}>
-                      Delete
+                      {t("Delete")}
                     </Button>
                   </div>
                 </Td>
@@ -263,11 +265,11 @@ export default function CompanyFacilitiesPage() {
 
       {/* Facility admins */}
       <div className="mt-6">
-        <Card title="Facility admins" subtitle={`${admins.length} admin${admins.length === 1 ? "" : "s"} across your facilities`}>
+        <Card title={t("Facility admins")} subtitle={t("{n} admins across your facilities", { n: admins.length })}>
           {admins.length === 0 ? (
-            <EmptyState title="No facility admins yet" hint="Add admins from a facility row or the header button" />
+            <EmptyState title={t("No facility admins yet")} hint={t("Add admins from a facility row or the header button")} />
           ) : (
-            <Table head={["Name", "Email", "Phone", "Facility", "Created"]} empty={null}>
+            <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Created")]} empty={null}>
               {admins.map((a) => (
                 <tr key={a.id} className="hover:bg-field-50/50">
                   <Td className="font-semibold text-field-900">{a.name}</Td>
@@ -286,33 +288,33 @@ export default function CompanyFacilitiesPage() {
       <Modal
         open={showFacilityModal}
         onClose={() => setShowFacilityModal(false)}
-        title={editingFacility ? `Edit ${editingFacility.name}` : "Onboard facility"}
+        title={editingFacility ? t("Edit {name}", { name: editingFacility.name }) : t("Onboard facility")}
       >
         <form onSubmit={saveFacility} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Facility name">
+            <Field label={t("Facility name")}>
               <Input
                 value={facilityForm.name}
                 onChange={(e) => setFacilityForm({ ...facilityForm, name: e.target.value })}
-                placeholder="e.g. Nashik Cold Store 1"
+                placeholder={t("e.g. Nashik Cold Store 1")}
                 required
               />
             </Field>
-            <Field label="Location">
+            <Field label={t("Location")}>
               <Input
                 value={facilityForm.location}
                 onChange={(e) => setFacilityForm({ ...facilityForm, location: e.target.value })}
-                placeholder="e.g. Pimpalgaon, NH-60"
+                placeholder={t("e.g. Pimpalgaon, NH-60")}
                 required
               />
             </Field>
-            <Field label="City">
+            <Field label={t("City")}>
               <Input
                 value={facilityForm.city}
                 onChange={(e) => setFacilityForm({ ...facilityForm, city: e.target.value })}
               />
             </Field>
-            <Field label="Capacity (workers)">
+            <Field label={t("Capacity (workers)")}>
               <Input
                 type="number"
                 min={0}
@@ -325,16 +327,16 @@ export default function CompanyFacilitiesPage() {
           {!editingFacility && (
             <>
               <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-                Optional: create this facility's admin login right away.
+                {t("Optional: create this facility's admin login right away.")}
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Admin name">
+                <Field label={t("Admin name")}>
                   <Input
                     value={adminForm.name}
                     onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
                   />
                 </Field>
-                <Field label="Admin email">
+                <Field label={t("Admin email")}>
                   <Input
                     type="email"
                     value={adminForm.email}
@@ -342,13 +344,13 @@ export default function CompanyFacilitiesPage() {
                     placeholder="admin@facility.local"
                   />
                 </Field>
-                <Field label="Admin phone">
+                <Field label={t("Admin phone")}>
                   <Input
                     value={adminForm.phone}
                     onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
                   />
                 </Field>
-                <Field label="Admin password" hint="Min 8 characters">
+                <Field label={t("Admin password")} hint={t("Min 8 characters")}>
                   <Input
                     type="password"
                     value={adminForm.password}
@@ -362,37 +364,37 @@ export default function CompanyFacilitiesPage() {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowFacilityModal(false)}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button type="submit" loading={busy}>
-              {editingFacility ? "Save changes" : "Onboard facility"}
+              {editingFacility ? t("Save changes") : t("Onboard facility")}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Add facility admin modal */}
-      <Modal open={showAdminModal} onClose={() => setShowAdminModal(false)} title="Add facility admin">
+      <Modal open={showAdminModal} onClose={() => setShowAdminModal(false)} title={t("Add facility admin")}>
         <form onSubmit={saveAdmin} className="space-y-4">
-          <Field label="Facility">
+          <Field label={t("Facility")}>
             <SearchableSelect
               value={adminFacilityId}
               onChange={setAdminFacilityId}
               options={rows.map((r) => ({ value: r.facility.id, label: r.facility.name }))}
-              placeholder="Select facility…"
-              searchPlaceholder="Search facilities…"
+              placeholder={t("Select facility…")}
+              searchPlaceholder={t("Search facilities…")}
               required
             />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Name">
+            <Field label={t("Name")}>
               <Input
                 value={addAdminForm.name}
                 onChange={(e) => setAddAdminForm({ ...addAdminForm, name: e.target.value })}
                 required
               />
             </Field>
-            <Field label="Email">
+            <Field label={t("Email")}>
               <Input
                 type="email"
                 value={addAdminForm.email}
@@ -400,13 +402,13 @@ export default function CompanyFacilitiesPage() {
                 required
               />
             </Field>
-            <Field label="Phone">
+            <Field label={t("Phone")}>
               <Input
                 value={addAdminForm.phone}
                 onChange={(e) => setAddAdminForm({ ...addAdminForm, phone: e.target.value })}
               />
             </Field>
-            <Field label="Password" hint="Min 8 characters">
+            <Field label={t("Password")} hint={t("Min 8 characters")}>
               <Input
                 type="password"
                 value={addAdminForm.password}
@@ -417,10 +419,10 @@ export default function CompanyFacilitiesPage() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowAdminModal(false)}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button type="submit" loading={adminBusy}>
-              Create admin
+              {t("Create admin")}
             </Button>
           </div>
         </form>

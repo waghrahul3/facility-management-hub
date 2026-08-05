@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -229,9 +230,9 @@ export function SearchableSelect({
   value,
   onChange,
   options,
-  placeholder = "Select…",
-  searchPlaceholder = "Search…",
-  empty = "No matches",
+  placeholder,
+  searchPlaceholder,
+  empty,
   allowClear = false,
   required = false,
   className = "",
@@ -246,10 +247,14 @@ export function SearchableSelect({
   required?: boolean;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const placeText = placeholder ?? t("Select…");
+  const searchText = searchPlaceholder ?? t("Search…");
+  const emptyText = empty ?? t("No matches");
 
   // Close on outside click / Escape
   useEffect(() => {
@@ -274,8 +279,8 @@ export function SearchableSelect({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    const t = window.setTimeout(() => searchRef.current?.focus(), 0);
-    return () => window.clearTimeout(t);
+    const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => window.clearTimeout(focusTimer);
   }, [open]);
 
   const selected = options.find((o) => o.value === value);
@@ -295,7 +300,7 @@ export function SearchableSelect({
           value ? "text-field-900" : "text-field-400"
         }`}
       >
-        <span className="truncate">{selected?.label ?? placeholder}</span>
+        <span className="truncate">{selected?.label ?? placeText}</span>
         <svg
           className={`h-4 w-4 shrink-0 text-field-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
           fill="none"
@@ -330,13 +335,13 @@ export function SearchableSelect({
               ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder={searchText}
               className="w-full rounded-lg border border-field-200 bg-field-50/50 px-2.5 py-1.5 text-sm text-field-900 placeholder:text-field-400 focus:border-onion-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-onion-600/20"
             />
           </div>
           <ul className="max-h-56 overflow-y-auto p-1">
             {filtered.length === 0 && (
-              <li className="px-3 py-2.5 text-center text-xs text-field-400">{empty}</li>
+              <li className="px-3 py-2.5 text-center text-xs text-field-400">{emptyText}</li>
             )}
             {filtered.map((o) => (
               <li key={o.value}>
@@ -380,6 +385,7 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const { t } = useI18n();
   const uid = useId();
   if (!open) return null;
   return (
@@ -401,7 +407,7 @@ export function Modal({
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-field-400 hover:bg-field-100 hover:text-field-700"
-            aria-label="Close"
+            aria-label={t("Close")}
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -511,11 +517,12 @@ export function Spinner({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-export function LoadingScreen({ label = "Loading…" }: { label?: string }) {
+export function LoadingScreen({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-field-400">
       <Spinner className="h-8 w-8 text-onion-600" />
-      <p className="text-sm font-medium">{label}</p>
+      <p className="text-sm font-medium">{label ?? t("Loading…")}</p>
     </div>
   );
 }

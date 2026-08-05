@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Card,
@@ -44,6 +45,7 @@ const actionTone: Record<string, "green" | "amber" | "red" | "blue" | "slate" | 
 };
 
 export default function AuditLogPage() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<AuditRow[] | null>(null);
   const [total, setTotal] = useState(0);
   const [action, setAction] = useState("");
@@ -65,30 +67,30 @@ export default function AuditLogPage() {
   return (
     <div>
       <PageHeader
-        title="Audit Log"
-        subtitle={`Every create, update, approve, collect, and distribute across the system (${total} events)`}
+        title={t("Audit Log")}
+        subtitle={t("Every create, update, approve, collect, and distribute across the system ({n} events)", { n: total })}
       />
 
       <Card className="mb-5">
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="Action">
+          <Field label={t("Action")}>
             <SearchableSelect
               value={action}
               onChange={(v) => setAction(v)}
               options={ACTIONS.map((a) => ({ value: a, label: a }))}
-              placeholder="All actions"
-              searchPlaceholder="Search actions…"
+              placeholder={t("All actions")}
+              searchPlaceholder={t("Search actions…")}
               allowClear
               className="w-44"
             />
           </Field>
-          <Field label="Entity">
+          <Field label={t("Entity")}>
             <SearchableSelect
               value={entityType}
               onChange={(v) => setEntityType(v)}
               options={ENTITIES.map((e) => ({ value: e, label: e }))}
-              placeholder="All entities"
-              searchPlaceholder="Search entities…"
+              placeholder={t("All entities")}
+              searchPlaceholder={t("Search entities…")}
               allowClear
               className="w-48"
             />
@@ -99,10 +101,10 @@ export default function AuditLogPage() {
       {!logs ? (
         <LoadingScreen />
       ) : logs.length === 0 ? (
-        <Card><EmptyState title="No audit events" hint="Mutating actions are logged automatically" /></Card>
+        <Card><EmptyState title={t("No audit events")} hint={t("Mutating actions are logged automatically")} /></Card>
       ) : (
         <Card>
-          <Table head={["When", "User", "Role", "Action", "Entity", "Details"]} empty={null}>
+          <Table head={[t("When"), t("User"), t("Role"), t("Action"), t("Entity"), t("Details")]} empty={null}>
             {logs.map((r) => (
               <tr key={r.log.id} className="hover:bg-field-50/50">
                 <Td className="whitespace-nowrap text-xs">{fmtDateTime(r.log.timestamp)}</Td>

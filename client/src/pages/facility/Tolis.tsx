@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
+import { useI18n } from "../../i18n";
 import {
   Button,
   Card,
@@ -40,6 +41,7 @@ interface ToliRow {
 
 export default function TolisPage() {
   const { facilityId: fid } = useFacilityScope();
+  const { t } = useI18n();
   const [tolis, setTolis] = useState<ToliRow[] | null>(null);
   const [drops, setDrops] = useState<DropOption[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -88,18 +90,18 @@ export default function TolisPage() {
   return (
     <div>
       <PageHeader
-        title="Tolis"
-        subtitle="Daily worker groups: leader, worker count, and day charge"
-        action={<Button onClick={() => setShowModal(true)}>+ Create toli</Button>}
+        title={t("Tolis")}
+        subtitle={t("Daily worker groups: leader, worker count, and day charge")}
+        action={<Button onClick={() => setShowModal(true)}>{t("+ Create toli")}</Button>}
       />
 
       {!tolis ? (
         <LoadingScreen />
       ) : tolis.length === 0 ? (
-        <Card><EmptyState title="No tolis yet" hint="Create a toli under a supplier drop" /></Card>
+        <Card><EmptyState title={t("No tolis yet")} hint={t("Create a toli under a supplier drop")} /></Card>
       ) : (
         <Card>
-          <Table head={["Leader", "Date", "Workers", "Day charge", "Drop", "Status"]} empty={null}>
+          <Table head={[t("Leader"), t("Date"), t("Workers"), t("Day charge"), t("Drop"), t("Status")]} empty={null}>
             {tolis.map((r) => (
               <tr key={r.toli.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{r.toli.leader_name}</Td>
@@ -107,7 +109,7 @@ export default function TolisPage() {
                 <Td>{r.toli.worker_count}</Td>
                 <Td><Money value={r.toli.daily_charge} /></Td>
                 <Td className="text-xs text-field-500">
-                  {r.supplier ? `${r.supplier.name} drop` : "—"}
+                  {r.supplier ? t("{name} drop", { name: r.supplier.name }) : "—"}
                 </Td>
                 <Td><StatusBadge status={r.toli.status} /></Td>
               </tr>
@@ -116,38 +118,38 @@ export default function TolisPage() {
         </Card>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="Create toli">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={t("Create toli")}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Leader name">
-            <Input value={form.leader_name} onChange={(e) => setForm({ ...form, leader_name: e.target.value })} placeholder="e.g. Mahesh Kale" required />
+          <Field label={t("Leader name")}>
+            <Input value={form.leader_name} onChange={(e) => setForm({ ...form, leader_name: e.target.value })} placeholder={t("e.g. Mahesh Kale")} required />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Worker count">
+            <Field label={t("Worker count")}>
               <Input type="number" min={0} value={form.worker_count} onChange={(e) => setForm({ ...form, worker_count: Number(e.target.value) })} required />
             </Field>
-            <Field label="Day charge (₹)">
+            <Field label={t("Day charge (₹)")}>
               <Input type="number" min={0} value={form.daily_charge} onChange={(e) => setForm({ ...form, daily_charge: Number(e.target.value) })} required />
             </Field>
           </div>
-          <Field label="Date">
+          <Field label={t("Date")}>
             <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </Field>
-          <Field label="Supplier drop (optional)">
+          <Field label={t("Supplier drop (optional)")}>
             <SearchableSelect
               value={form.drop_id}
               onChange={(v) => setForm({ ...form, drop_id: v })}
               options={drops.map((d) => ({
                 value: d.id,
-                label: `${d.supplier?.name ?? "Unknown supplier"} — ${fmtDate(d.drop_date)}`,
+                label: `${d.supplier?.name ?? t("Unknown supplier")} — ${fmtDate(d.drop_date)}`,
               }))}
-              placeholder="No drop"
-              searchPlaceholder="Search drops…"
+              placeholder={t("No drop")}
+              searchPlaceholder={t("Search drops…")}
               allowClear
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" loading={busy}>Create toli</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={busy}>{t("Create toli")}</Button>
           </div>
         </form>
       </Modal>

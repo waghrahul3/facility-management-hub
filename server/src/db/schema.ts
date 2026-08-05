@@ -295,6 +295,8 @@ export const workEntries = pgTable(
     bag_size_id: uuid("bag_size_id")
       .notNull()
       .references(() => bagSizes.id),
+    // Free-text onion category (e.g. "Red", "White", "Rose", "Grower Grade")
+    onion_category: text("onion_category"),
     quantity_bags: integer("quantity_bags").notNull(),
     // Snapshot of the applicable rate on that date (facility rate overrides global)
     rate_per_bag: integer("rate_per_bag").notNull(),
@@ -563,3 +565,156 @@ export const subscriptionRenewals = pgTable(
 );
 
 export type SubscriptionRenewal = typeof subscriptionRenewals.$inferSelect;
+
+export const vehicleTypeEnum = pgEnum("vehicle_type", [
+  "TRUCK",
+  "CONTAINER",
+  "TRACTOR",
+  "TEMPO",
+  "OTHER",
+]);
+
+export const salesOrderStatusEnum = pgEnum("sales_order_status", [
+  "PENDING",
+  "PARTIALLY_DISPATCHED",
+  "COMPLETED",
+  "CANCELLED",
+]);
+
+export const buyers = pgTable(
+  "buyers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    company_id: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    address: text("address"),
+    city: text("city"),
+    is_active: boolean("is_active").default(true).notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("buyers_company_idx").on(t.company_id)]
+);
+
+export const salesOrders = pgTable(
+  "sales_orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    order_number: text("order_number").notNull().unique(),
+    company_id: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    // Facility that will fill this order
+    facility_id: uuid("facility_id")
+      .notNull()
+      .references(() => facilities.id),
+    buyer_id: uuid("buyer_id")
+      .notNull()
+      .references(() => buyers.id),
+    order_date: timestamp("order_date", { withTimezone: true }).notNull(),
+    status: salesOrderStatusEnum("status").default("PENDING").notNull(),
+    total_amount: integer("total_amount").default(0).notNull(),
+    notes: text("notes"),
+    created_by: uuid("created_by").references(() => users.id),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("sales_orders_company_idx").on(t.company_id),
+    index("sales_orders_facility_idx").on(t.facility_id),
+    index("sales_orders_buyer_idx").on(t.buyer_id),
+    index("sales_orders_status_idx").on(t.status),
+  ]
+);
+
+export const salesOrderItems = pgTable(
+  "sales_order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    order_id: uuid("order_id")
+      .notNull()
+      .references(() => salesOrders.id, { onDelete: "cascade" }),
+    // Free-text onion category (Red, White, Rose…) — matches work entries
+    onion_category: text("onion_category"),
+    bag_size_id: uuid("bag_size_id")
+      .notNull()
+      .references(() => bagSizes.id),
+    quantity_bags: integer("quantity_bags").notNull(),
+    rate_per_bag: integer("rate_per_bag").notNull(),
+    total_amount: integer("total_amount").notNull(),
+  },
+  (t) => [index("order_items_order_idx").on(t.order_id)]
+);
+
+export const dispatches = pgTable(
+  "dispatches",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    order_id: uuid("order_id")
+      .notNull()
+      .references(() => salesOrders.id, { onDelete: "cascade" }),
+    facility_id: uuid("facility_id")
+      .notNull()
+      .references(() => facilities.id),
+    vehicle_type: vehicleTypeEnum("vehicle_type").notNull(),
+    vehicle_number: text("vehicle_number"),
+    destination: text("destination"),
+    dispatch_date: timestamp("dispatch_date", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    notes: text("notes"),
+    created_by: uuid("created_by").references(() => users.id),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("dispatches_order_idx").on(t.order_id),
+    index("dispatches_facility_idx").on(t.facility_id),
+  ]
+);
+
+export const dispatchItems = pgTable(
+  "dispatch_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    dispatch_id: uuid("dispatch_id")
+      .notNull()
+      .references(() => dispatches.id, { onDelete: "cascade" }),
+    order_item_id: uuid("order_item_id")
+      .notNull()
+      .references(() => salesOrderItems.id),
+    quantity_bags: integer("quantity_bags").notNull(),
+    rate_per_bag: integer("rate_per_bag").notNull(),
+    total_amount: integer("total_amount").notNull(),
+  },
+  (t) => [index("dispatch_items_dispatch_idx").on(t.dispatch_id)]
+);
+
+export const orderPayments = pgTable(
+  "order_payments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    order_id: uuid("order_id")
+      .notNull()
+      .references(() => salesOrders.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    payment_date: timestamp("payment_date", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    payment_method: text("payment_method").default("CASH").notNull(),
+    reference_number: text("reference_number"),
+    notes: text("notes"),
+    recorded_by: uuid("recorded_by").references(() => users.id),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("order_payments_order_idx").on(t.order_id)]
+);
+
+export type Buyer = typeof buyers.$inferSelect;
+export type SalesOrder = typeof salesOrders.$inferSelect;
+export type SalesOrderItem = typeof salesOrderItems.$inferSelect;
+export type Dispatch = typeof dispatches.$inferSelect;
+export type DispatchItem = typeof dispatchItems.$inferSelect;
+export type OrderPayment = typeof orderPayments.$inferSelect;

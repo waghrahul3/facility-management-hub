@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -31,6 +32,7 @@ interface Company {
 }
 
 export default function CompanyAdminsPage() {
+  const { t } = useI18n();
   const [admins, setAdmins] = useState<CompanyAdmin[] | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -74,18 +76,18 @@ export default function CompanyAdminsPage() {
   return (
     <div>
       <PageHeader
-        title="Company Admins"
-        subtitle="Administrators who oversee all facilities of a trading company"
-        action={<Button onClick={() => setShowModal(true)}>+ New company admin</Button>}
+        title={t("Company Admins")}
+        subtitle={t("Administrators who oversee all facilities of a trading company")}
+        action={<Button onClick={() => setShowModal(true)}>{t("+ New company admin")}</Button>}
       />
 
       {!admins ? (
         <LoadingScreen />
       ) : admins.length === 0 ? (
-        <Card><EmptyState title="No company admins yet" hint="Create an admin for a company" /></Card>
+        <Card><EmptyState title={t("No company admins yet")} hint={t("Create an admin for a company")} /></Card>
       ) : (
         <Card>
-          <Table head={["Name", "Email", "Phone", "Company", "Role"]} empty={null}>
+          <Table head={[t("Name"), t("Email"), t("Phone"), t("Company"), t("Role")]} empty={null}>
             {admins.map((a) => (
               <tr key={a.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{a.name}</Td>
@@ -93,9 +95,9 @@ export default function CompanyAdminsPage() {
                 <Td>{a.phone ?? "—"}</Td>
                 <Td>
                   {a.company_id ? (
-                    <Badge tone="blue">{companies.find((c) => c.id === a.company_id)?.name ?? "Assigned"}</Badge>
+                    <Badge tone="blue">{companies.find((c) => c.id === a.company_id)?.name ?? t("Assigned")}</Badge>
                   ) : (
-                    <Badge tone="red">Unassigned</Badge>
+                    <Badge tone="red">{t("Unassigned")}</Badge>
                   )}
                 </Td>
                 <Td><Badge tone="violet">COMPANY ADMIN</Badge></Td>
@@ -105,33 +107,33 @@ export default function CompanyAdminsPage() {
         </Card>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="New company admin">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={t("New company admin")}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Full name">
+          <Field label={t("Full name")}>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Field>
-          <Field label="Email">
+          <Field label={t("Email")}>
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </Field>
-          <Field label="Phone">
+          <Field label={t("Phone")}>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Field>
-          <Field label="Password">
+          <Field label={t("Password")}>
             <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
           </Field>
-          <Field label="Company">
+          <Field label={t("Company")}>
             <SearchableSelect
               value={form.companyId}
               onChange={(v) => setForm({ ...form, companyId: v })}
               options={companies.map((c) => ({ value: c.id, label: c.name }))}
-              placeholder="Select company…"
-              searchPlaceholder="Search companies…"
+              placeholder={t("Select company…")}
+              searchPlaceholder={t("Search companies…")}
               required
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" loading={busy}>Create admin</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={busy}>{t("Create admin")}</Button>
           </div>
         </form>
       </Modal>

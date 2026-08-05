@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Card,
@@ -14,11 +15,13 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate, weekStartInput } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface EntryRow {
   entry: {
     id: string;
     work_date: string;
+    onion_category: string | null;
     quantity_bags: number;
     rate_per_bag: number;
     total_amount: number;
@@ -30,6 +33,7 @@ interface EntryRow {
 }
 
 export default function SupplierWorkEntriesPage() {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<EntryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
 
@@ -46,12 +50,13 @@ export default function SupplierWorkEntriesPage() {
   return (
     <div>
       <PageHeader
-        title="Work Entries"
-        subtitle="Daily work recorded for the tolis you dropped — view only"
+        title={t("Work Entries")}
+        subtitle={t("Daily work recorded for the tolis you dropped — view only")}
+        action={<ExportButtons reportType="work" filters={{ from: weekStart }} />}
       />
 
       <Card className="mb-5">
-        <Field label="Week starting">
+        <Field label={t("Week starting")}>
           <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </Field>
       </Card>
@@ -61,34 +66,35 @@ export default function SupplierWorkEntriesPage() {
       ) : entries.length === 0 ? (
         <Card>
           <EmptyState
-            title="No work entries for your drops"
-            hint="Work recorded against tolis from your drops will appear here"
+            title={t("No work entries for your drops")}
+            hint={t("Work recorded against tolis from your drops will appear here")}
           />
         </Card>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between rounded-xl border border-onion-200 bg-onion-50 px-4 py-3">
             <span className="text-sm font-medium text-onion-800">
-              Total work value for your drops this week
+              {t("Total work value for your drops this week")}
             </span>
             <Money value={totalWork} className="text-lg font-bold" />
           </div>
           <Card>
-            <Table head={["Date", "Toli leader", "Bag size", "Qty", "Rate", "Amount", "Status", "Leader OK"]} empty={null}>
+            <Table head={[t("Date"), t("Toli leader"), t("Bag size"), t("Category"), t("Qty"), t("Rate"), t("Amount"), t("Status"), t("Leader OK")]} empty={null}>
               {entries.map((r) => (
                 <tr key={r.entry.id} className="hover:bg-field-50/50">
                   <Td>{fmtDate(r.entry.work_date)}</Td>
                   <Td className="font-medium text-field-900">{r.toli.leader_name}</Td>
                   <Td>{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
+                  <Td>{r.entry.onion_category || <span className="text-field-300">—</span>}</Td>
                   <Td>{r.entry.quantity_bags}</Td>
                   <Td><Money value={r.entry.rate_per_bag} /></Td>
                   <Td className="font-semibold"><Money value={r.entry.total_amount} /></Td>
                   <Td><StatusBadge status={r.entry.status} /></Td>
                   <Td>
                     {r.entry.leader_confirmed_at ? (
-                      <Badge tone="green">Confirmed</Badge>
+                      <Badge tone="green">{t("Confirmed")}</Badge>
                     ) : (
-                      <Badge tone="slate">Pending</Badge>
+                      <Badge tone="slate">{t("Pending")}</Badge>
                     )}
                   </Td>
                 </tr>

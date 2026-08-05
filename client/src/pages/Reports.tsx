@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, downloadReport, getAccessToken } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../i18n";
 import {
   Card,
   StatCard,
@@ -167,6 +168,7 @@ function getStatusColor(status: string): string {
 
 export default function ReportsPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [types, setTypes] = useState<string[]>([]);
   const [activeType, setActiveType] = useState<string>("");
   const [report, setReport] = useState<Report | null>(null);
@@ -195,7 +197,7 @@ export default function ReportsPage() {
       })
       .catch(() => {
         setTypes([]);
-        setError("Failed to load report types");
+        setError(t("Failed to load report types"));
       });
   }, []);
 
@@ -233,7 +235,7 @@ export default function ReportsPage() {
       const data = await api<Report>(`/reports/${activeType}${qs ? "?" + qs : ""}`);
       setReport(data);
     } catch (err: any) {
-      setError(err?.message || "Failed to load report");
+      setError(err?.message || t("Failed to load report"));
     } finally {
       setLoading(false);
     }
@@ -252,7 +254,7 @@ export default function ReportsPage() {
       if (supplierId) filters.supplierId = supplierId;
       await downloadReport(activeType, format, filters);
     } catch (err: any) {
-      setError(err?.message || "Download failed");
+      setError(err?.message || t("Download failed"));
     }
   };
 
@@ -271,10 +273,10 @@ export default function ReportsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-field-900">
-            📊 Reports & Ledgers
+            📊 {t("Reports & Ledgers")}
           </h1>
           <p className="mt-1 text-sm text-field-500">
-            Detailed financial records — download as PDF or Excel
+            {t("Detailed financial records — download as PDF or Excel")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -286,7 +288,7 @@ export default function ReportsPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            Excel
+            {t("Excel")}
           </button>
           <button
             onClick={() => handleDownload("pdf")}
@@ -296,7 +298,7 @@ export default function ReportsPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            PDF
+            {t("PDF")}
           </button>
         </div>
       </div>
@@ -333,7 +335,7 @@ export default function ReportsPage() {
         
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div>
-              <label className="mb-1 block text-xs font-medium text-field-500">From Date</label>
+              <label className="mb-1 block text-xs font-medium text-field-500">{t("From Date")}</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -342,7 +344,7 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-field-500">To Date</label>
+              <label className="mb-1 block text-xs font-medium text-field-500">{t("To Date")}</label>
               <input
                 type="date"
                 value={dateTo}
@@ -351,13 +353,13 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-field-500">Facility</label>
+              <label className="mb-1 block text-xs font-medium text-field-500">{t("Facility")}</label>
               <select
                 value={facilityId}
                 onChange={(e) => setFacilityId(e.target.value)}
                 className="w-full rounded-lg border border-field-200 px-3 py-2 text-sm focus:border-onion-500 focus:outline-none focus:ring-1 focus:ring-onion-500"
               >
-                <option value="">{facLoading ? "Loading..." : "All Facilities"}</option>
+                <option value="">{facLoading ? t("Loading...") : t("All Facilities")}</option>
                 {facilities.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name}
@@ -366,13 +368,13 @@ export default function ReportsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-field-500">Supplier</label>
+              <label className="mb-1 block text-xs font-medium text-field-500">{t("Supplier")}</label>
               <select
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="w-full rounded-lg border border-field-200 px-3 py-2 text-sm focus:border-onion-500 focus:outline-none focus:ring-1 focus:ring-onion-500"
               >
-                <option value="">{supLoading ? "Loading..." : "All Suppliers"}</option>
+                <option value="">{supLoading ? t("Loading...") : t("All Suppliers")}</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -381,7 +383,7 @@ export default function ReportsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-field-500">Search</label>
+              <label className="mb-1 block text-xs font-medium text-field-500">{t("Search")}</label>
               <div className="relative">
                 <svg
                   className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-field-400"
@@ -394,7 +396,7 @@ export default function ReportsPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search in results..."
+                  placeholder={t("Search in results...")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-lg border border-field-200 py-2 pl-9 pr-3 text-sm focus:border-onion-500 focus:outline-none focus:ring-1 focus:ring-onion-500"
@@ -480,7 +482,7 @@ export default function ReportsPage() {
                       <tr className="bg-onion-50 font-semibold">
                         {report.columns.map((col, ci) => (
                           <td key={col.key} className="whitespace-nowrap px-4 py-3 text-sm text-onion-800">
-                            {ci === 0 ? "TOTALS" : formatTotal(report.totals[col.key], col)}
+                            {ci === 0 ? t("TOTALS") : formatTotal(report.totals[col.key], col)}
                           </td>
                         ))}
                       </tr>
@@ -491,15 +493,17 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="rounded-xl border border-field-200 bg-white p-12 text-center">
-              <p className="text-lg text-field-400">No data found for the selected filters</p>
-              <p className="mt-1 text-sm text-field-400">Try adjusting the date range or filters</p>
+              <p className="text-lg text-field-400">{t("No data found for the selected filters")}</p>
+              <p className="mt-1 text-sm text-field-400">{t("Try adjusting the date range or filters")}</p>
             </div>
           )}
 
           {/* Row count */}
           <p className="text-xs text-field-400">
-            {report.rows.length} record{report.rows.length !== 1 ? "s" : ""} · Generated{" "}
-            {new Date(report.generatedAt).toLocaleString("en-IN")}
+            {t("{n} records · Generated {at}", {
+              n: report.rows.length,
+              at: new Date(report.generatedAt).toLocaleString("en-IN"),
+            })}
           </p>
         </div>
       ) : null}

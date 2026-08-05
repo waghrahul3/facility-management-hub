@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import {
   Td,
 } from "../../components/ui";
 import { weekStartInput } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface SummaryRow {
   summary: {
@@ -32,6 +34,7 @@ interface SummaryRow {
 
 export default function ApprovalsPage() {
   const { facilityId: fid } = useFacilityScope();
+  const { t } = useI18n();
   const [summaries, setSummaries] = useState<SummaryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [busy, setBusy] = useState(false);
@@ -68,17 +71,20 @@ export default function ApprovalsPage() {
   return (
     <div>
       <PageHeader
-        title="Weekly Approvals"
-        subtitle="Generate per-toli weekly summaries and approve before Sunday payment"
+        title={t("Weekly Approvals")}
+        subtitle={t("Generate per-toli weekly summaries and approve before Sunday payment")}
         action={
-          <Button onClick={generate} loading={busy}>
-            Regenerate summaries
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportButtons reportType="summaries" filters={{ from: weekStart }} />
+            <Button onClick={generate} loading={busy}>
+              {t("Regenerate summaries")}
+            </Button>
+          </div>
         }
       />
 
       <Card className="mb-5">
-        <Field label="Week starting">
+        <Field label={t("Week starting")}>
           <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </Field>
       </Card>
@@ -88,14 +94,14 @@ export default function ApprovalsPage() {
       ) : summaries.length === 0 ? (
         <Card>
           <EmptyState
-            title="No summaries for this week"
-            hint="Generate summaries from approved work entries"
+            title={t("No summaries for this week")}
+            hint={t("Generate summaries from approved work entries")}
           />
         </Card>
       ) : (
         <Card>
           <Table
-            head={["Toli", "Supplier", "Bags", "Work amount", "Day charge", "Total earnings", "Status", "Actions"]}
+            head={[t("Toli"), t("Supplier"), t("Bags"), t("Work amount"), t("Day charge"), t("Total earnings"), t("Status"), t("Actions")]}
             empty={null}
           >
             {summaries.map((r) => (
@@ -110,20 +116,20 @@ export default function ApprovalsPage() {
                 <Td>
                   {r.summary.approval_status === "PENDING" ? (
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => approve(r.summary.id)}>Approve</Button>
-                      <Button size="sm" variant="danger" onClick={() => reject(r.summary.id)}>Reject</Button>
+                      <Button size="sm" onClick={() => approve(r.summary.id)}>{t("Approve")}</Button>
+                      <Button size="sm" variant="danger" onClick={() => reject(r.summary.id)}>{t("Reject")}</Button>
                     </div>
                   ) : r.summary.approval_status === "APPROVED" ? (
-                    <Badge tone="green">Ready for payment</Badge>
+                    <Badge tone="green">{t("Ready for payment")}</Badge>
                   ) : (
-                    <Badge tone="red">Rejected</Badge>
+                    <Badge tone="red">{t("Rejected")}</Badge>
                   )}
                 </Td>
               </tr>
             ))}
           </Table>
           <div className="mt-3 rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-            Only approved summaries count toward Sunday supplier payments.
+            {t("Only approved summaries count toward Sunday supplier payments.")}
           </div>
         </Card>
       )}

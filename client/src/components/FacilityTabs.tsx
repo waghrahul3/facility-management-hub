@@ -1,23 +1,39 @@
 import { NavLink } from "react-router-dom";
+import { useI18n } from "../i18n";
 
-const sections = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "drops", label: "Drops" },
-  { key: "tolis", label: "Tolis" },
-  { key: "work-entries", label: "Work" },
-  { key: "rates", label: "Rates" },
-  { key: "approvals", label: "Approvals" },
-  { key: "payments", label: "Payments" },
-];
+const sectionKeys = [
+  "dashboard",
+  "loading",
+  "sales",
+  "drops",
+  "tolis",
+  "work-entries",
+  "rates",
+  "approvals",
+  "payments",
+] as const;
+
+const sectionLabels: Record<(typeof sectionKeys)[number], string> = {
+  dashboard: "Dashboard",
+  loading: "Loading",
+  sales: "Sales Orders",
+  drops: "Drops",
+  tolis: "Tolis",
+  "work-entries": "Work",
+  rates: "Rates",
+  approvals: "Approvals",
+  payments: "Payments",
+};
 
 /** Sub-navigation across a facility's sections (used in company workspace). */
 export default function FacilityTabs({ base }: { base: string }) {
+  const { t } = useI18n();
   return (
     <nav className="no-scrollbar -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl border border-field-200 bg-white p-1">
-      {sections.map((s) => (
+      {sectionKeys.map((key) => (
         <NavLink
-          key={s.key}
-          to={`${base}/${s.key}`}
+          key={key}
+          to={`${base}/${key}`}
           className={({ isActive }) =>
             `whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
               isActive
@@ -26,7 +42,7 @@ export default function FacilityTabs({ base }: { base: string }) {
             }`
           }
         >
-          {s.label}
+          {t(sectionLabels[key])}
         </NavLink>
       ))}
     </nav>

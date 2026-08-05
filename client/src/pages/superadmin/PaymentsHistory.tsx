@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Card,
   EmptyState,
@@ -11,6 +12,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface PaymentRow {
   payment: {
@@ -28,6 +30,7 @@ interface PaymentRow {
 }
 
 export default function PaymentsHistoryPage() {
+  const { t } = useI18n();
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
 
   const load = useCallback(() => {
@@ -41,18 +44,19 @@ export default function PaymentsHistoryPage() {
   return (
     <div>
       <PageHeader
-        title="Payment History"
-        subtitle="Weekly supplier settlements across all facilities"
+        title={t("Payment History")}
+        subtitle={t("Weekly supplier settlements across all facilities")}
+        action={<ExportButtons reportType="payments" />}
       />
 
       {!payments ? (
         <LoadingScreen />
       ) : payments.length === 0 ? (
-        <Card><EmptyState title="No payments yet" hint="Payments appear once facilities process Sunday settlements" /></Card>
+        <Card><EmptyState title={t("No payments yet")} hint={t("Payments appear once facilities process Sunday settlements")} /></Card>
       ) : (
         <Card>
           <Table
-            head={["Week", "Facility", "Supplier", "Earnings", "Rent", "Net", "Method", "Status"]}
+            head={[t("Week"), t("Facility"), t("Supplier"), t("Earnings"), t("Rent"), t("Net"), t("Method"), t("Status")]}
             empty={null}
           >
             {payments.map((r) => (

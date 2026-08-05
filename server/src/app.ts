@@ -15,6 +15,7 @@ import supplierRoutes from "./routes/supplier.js";
 import toliLeaderRoutes from "./routes/tolileader.js";
 import reportsRoutes from "./routes/reports.js";
 import subscriptionRoutes from "./routes/subscription.js";
+import salesRoutes from "./routes/sales.js";
 import { errorMiddleware } from "./lib/errors.js";
 import { config } from "./config.js";
 
@@ -84,6 +85,7 @@ export function createApp() {
   app.use("/api/toli-leader", toliLeaderRoutes);
   app.use("/api/reports", reportsRoutes);
   app.use("/api/subscriptions", subscriptionRoutes);
+  app.use("/api/sales", salesRoutes);
 
   // 404 for unknown API routes
   app.use("/api", (_req, res) => {

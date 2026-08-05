@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Card,
@@ -12,6 +13,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface HistoryPayment {
   id: string;
@@ -33,6 +35,7 @@ interface HistoryPayment {
 }
 
 export default function SupplierPaymentHistoryPage() {
+  const { t } = useI18n();
   const [payments, setPayments] = useState<HistoryPayment[] | null>(null);
 
   useEffect(() => {
@@ -41,17 +44,18 @@ export default function SupplierPaymentHistoryPage() {
     );
   }, []);
 
-  if (!payments) return <LoadingScreen label="Loading payment history…" />;
+  if (!payments) return <LoadingScreen label={t("Loading payment history…")} />;
 
   return (
     <div>
       <PageHeader
-        title="Payment History"
-        subtitle="Weekly settlements with distributions to toli leaders"
+        title={t("Payment History")}
+        subtitle={t("Weekly settlements with distributions to toli leaders")}
+        action={<ExportButtons reportType="distributions" />}
       />
 
       {payments.length === 0 ? (
-        <Card><EmptyState title="No payments yet" hint="Payments appear after Sunday processing" /></Card>
+        <Card><EmptyState title={t("No payments yet")} hint={t("Payments appear after Sunday processing")} /></Card>
       ) : (
         <div className="space-y-4">
           {payments.map((p) => {
@@ -59,7 +63,7 @@ export default function SupplierPaymentHistoryPage() {
             return (
               <Card
                 key={p.id}
-                title={`Week of ${fmtDate(p.week_start_date)}`}
+                title={t("Week of {date}", { date: fmtDate(p.week_start_date) })}
                 subtitle={
                   <span className="flex items-center gap-2">
                     <StatusBadge status={p.collection_status} />
@@ -71,25 +75,25 @@ export default function SupplierPaymentHistoryPage() {
               >
                 <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="rounded-lg bg-field-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">Earnings</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Earnings")}</p>
                     <p className="font-display text-base font-bold text-field-900">
                       <Money value={p.total_worker_earnings} />
                     </p>
                   </div>
                   <div className="rounded-lg bg-field-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">Rent</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Rent")}</p>
                     <p className="font-display text-base font-bold text-red-600">
                       − <Money value={p.total_rent_charges} />
                     </p>
                   </div>
                   <div className="rounded-lg bg-onion-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-onion-600">Net</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-onion-600">{t("Net")}</p>
                     <p className="font-display text-base font-bold text-onion-800">
                       <Money value={p.net_payment} />
                     </p>
                   </div>
                   <div className="rounded-lg bg-field-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">Distributed</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Distributed")}</p>
                     <p className="font-display text-base font-bold text-field-900">
                       <Money value={totalDistributed} />
                     </p>
@@ -97,7 +101,7 @@ export default function SupplierPaymentHistoryPage() {
                 </div>
 
                 {p.distributions.length > 0 && (
-                  <Table head={["Toli", "Amount", "Method", "Date"]} empty={null}>
+                  <Table head={[t("Toli"), t("Amount"), t("Method"), t("Date")]} empty={null}>
                     {p.distributions.map((d) => (
                       <tr key={d.id}>
                         <Td className="font-medium text-field-800">Toli {d.toli_id.slice(0, 8)}</Td>

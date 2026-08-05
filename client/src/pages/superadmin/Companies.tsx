@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, del, post, put } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -43,6 +44,7 @@ const emptyForm = {
 };
 
 export default function CompaniesPage() {
+  const { t } = useI18n();
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
@@ -123,7 +125,7 @@ export default function CompaniesPage() {
       setShowModal(false);
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("Something went wrong"));
     } finally {
       setBusy(false);
     }
@@ -135,7 +137,7 @@ export default function CompaniesPage() {
   }
 
   async function remove(c: Company) {
-    if (!confirm(`Delete company "${c.name}"? Its facilities will be unassigned.`)) return;
+    if (!confirm(t("Delete company \"{name}\"? Its facilities will be unassigned.", { name: c.name }))) return;
     await del(`/super-admin/companies/${c.id}`);
     load();
   }
@@ -143,19 +145,19 @@ export default function CompaniesPage() {
   return (
     <div>
       <PageHeader
-        title="Companies"
-        subtitle="Trading companies that own one or more onion processing facilities"
-        action={<Button onClick={openCreate}>+ New company</Button>}
+        title={t("Companies")}
+        subtitle={t("Trading companies that own one or more onion processing facilities")}
+        action={<Button onClick={openCreate}>{t("+ New company")}</Button>}
       />
 
       {!companies ? (
         <LoadingScreen />
       ) : companies.length === 0 ? (
-        <Card><EmptyState title="No companies yet" hint="Register the first trading company" /></Card>
+        <Card><EmptyState title={t("No companies yet")} hint={t("Register the first trading company")} /></Card>
       ) : (
         <Card>
           <Table
-            head={["Company", "Contact", "Phone", "City", "Company admin", "Facilities", "Status", "Actions"]}
+            head={[t("Company"), t("Contact"), t("Phone"), t("City"), t("Company admin"), t("Facilities"), t("Status"), t("Actions")]}
             empty={null}
           >
             {companies.map((c) => (
@@ -177,17 +179,17 @@ export default function CompaniesPage() {
                     <span className="text-field-400">—</span>
                   )}
                 </Td>
-                <Td><Badge tone="blue">{c.facilityCount} facility{c.facilityCount === 1 ? "" : "s"}</Badge></Td>
+                <Td><Badge tone="blue">{t("{n} facilities", { n: c.facilityCount })}</Badge></Td>
                 <Td>
-                  {c.is_active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Inactive</Badge>}
+                  {c.is_active ? <Badge tone="green">{t("Active")}</Badge> : <Badge tone="red">{t("Inactive")}</Badge>}
                 </Td>
                 <Td>
                   <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(c)}>Edit</Button>
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(c)}>{t("Edit")}</Button>
                     <Button variant="ghost" size="sm" onClick={() => toggleActive(c)}>
-                      {c.is_active ? "Deactivate" : "Activate"}
+                      {c.is_active ? t("Deactivate") : t("Activate")}
                     </Button>
-                    <Button variant="danger" size="sm" onClick={() => remove(c)}>Delete</Button>
+                    <Button variant="danger" size="sm" onClick={() => remove(c)}>{t("Delete")}</Button>
                   </div>
                 </Td>
               </tr>
@@ -196,30 +198,30 @@ export default function CompaniesPage() {
         </Card>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? "Edit company" : "New company"}>
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? t("Edit company") : t("New company")}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-            A company owns one or more facilities. Its admin can oversee all of them after sign-in.
+            {t("A company owns one or more facilities. Its admin can oversee all of them after sign-in.")}
           </div>
-          <Field label="Company name">
+          <Field label={t("Company name")}>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Field>
-          <Field label="Contact person">
+          <Field label={t("Contact person")}>
             <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Email">
+            <Field label={t("Email")}>
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </Field>
-            <Field label="Phone">
+            <Field label={t("Phone")}>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Address">
+            <Field label={t("Address")}>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </Field>
-            <Field label="City">
+            <Field label={t("City")}>
               <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             </Field>
           </div>
@@ -227,21 +229,21 @@ export default function CompaniesPage() {
           {!editing && (
             <div className="rounded-xl border border-field-200 bg-field-50/40 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-field-500">
-                Company admin login
+                {t("Company admin login")}
               </p>
               <p className="-mt-2 mb-3 text-[11px] text-field-400">
-                The admin is created with the company and can sign in immediately.
+                {t("The admin is created with the company and can sign in immediately.")}
               </p>
               <div className="space-y-3">
-                <Field label="Admin full name">
+                <Field label={t("Admin full name")}>
                   <Input
                     value={form.adminName}
                     onChange={(e) => setForm({ ...form, adminName: e.target.value })}
-                    placeholder="e.g. Santosh Deshmukh"
+                    placeholder={t("e.g. Santosh Deshmukh")}
                   />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Admin email">
+                  <Field label={t("Admin email")}>
                     <Input
                       type="email"
                       value={form.adminEmail}
@@ -249,19 +251,19 @@ export default function CompaniesPage() {
                       placeholder="admin@company.com"
                     />
                   </Field>
-                  <Field label="Admin phone">
+                  <Field label={t("Admin phone")}>
                     <Input
                       value={form.adminPhone}
                       onChange={(e) => setForm({ ...form, adminPhone: e.target.value })}
                     />
                   </Field>
                 </div>
-                <Field label="Temporary password">
+                <Field label={t("Temporary password")}>
                   <Input
                     type="password"
                     value={form.adminPassword}
                     onChange={(e) => setForm({ ...form, adminPassword: e.target.value })}
-                    placeholder="Min. 6 characters"
+                    placeholder={t("Min. 6 characters")}
                     minLength={6}
                   />
                 </Field>
@@ -276,8 +278,8 @@ export default function CompaniesPage() {
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" loading={busy}>{editing ? "Save changes" : "Create company"}</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={busy}>{editing ? t("Save changes") : t("Create company")}</Button>
           </div>
         </form>
       </Modal>

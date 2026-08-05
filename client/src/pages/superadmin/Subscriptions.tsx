@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Card,
   StatCard,
@@ -12,6 +13,7 @@ import {
   EmptyState,
   Spinner,
 } from "../../components/ui";
+import ExportButtons from "../../components/ExportButtons";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,6 +121,7 @@ function statusColor(status: string): string {
 // ---------------------------------------------------------------------------
 
 export default function SubscriptionsPage() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<"plans" | "subscriptions" | "payments">("plans");
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -294,50 +297,53 @@ export default function SubscriptionsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-field-900">📋 Subscriptions & Billing</h1>
+          <h1 className="font-display text-2xl font-bold text-field-900">📋 {t("Subscriptions & Billing")}</h1>
           {expiringCount > 0 && (
             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-center gap-2">
                 <span className="text-amber-600">⚠️</span>
                 <p className="text-sm text-amber-800">
-                  <strong>{expiringCount}</strong> subscription{expiringCount !== 1 ? 's' : ''} expiring within 7 days
+                  <strong>{expiringCount}</strong> {t("subscriptions expiring within 7 days")}
                 </p>
                 <button
                   onClick={handleAutoExpire}
                   className="ml-auto rounded bg-amber-600 px-3 py-1 text-xs text-white hover:bg-amber-700"
                 >
-                  Auto-Expire
+                  {t("Auto-Expire")}
                 </button>
               </div>
             </div>
           )}
-          <p className="mt-1 text-sm text-field-500">Manage subscription plans, active subscriptions, and payments</p>
+          <p className="mt-1 text-sm text-field-500">{t("Manage subscription plans, active subscriptions, and payments")}</p>
+        </div>
+        <div className="flex shrink-0 items-center">
+          <ExportButtons reportType="subscription-earnings" />
         </div>
       </div>
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Active" value={stats.active} tone="green" icon="✅" />
-          <StatCard label="Expired" value={stats.expired} tone="red" icon="⏰" />
-          <StatCard label="Pending" value={stats.pending} tone="amber" icon="⏳" />
-          <StatCard label="Revenue" value={formatMoney(stats.totalRevenue)} tone="blue" icon="💰" />
+          <StatCard label={t("Active")} value={stats.active} tone="green" icon="✅" />
+          <StatCard label={t("Expired")} value={stats.expired} tone="red" icon="⏰" />
+          <StatCard label={t("Pending")} value={stats.pending} tone="amber" icon="⏳" />
+          <StatCard label={t("Revenue")} value={formatMoney(stats.totalRevenue)} tone="blue" icon="💰" />
         </div>
       )}
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-field-200 pb-2">
-        {(["plans", "subscriptions", "payments"] as const).map((t) => (
+        {(["plans", "subscriptions", "payments"] as const).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t
+              tab === tabKey
                 ? "bg-onion-600 text-white"
                 : "text-field-600 hover:bg-field-50"
             }`}
           >
-            {t === "plans" ? "📦 Plans" : t === "subscriptions" ? "🔗 Subscriptions" : "💳 Payments"}
+            {tabKey === "plans" ? "📦 " + t("Plans") : tabKey === "subscriptions" ? "🔗 " + t("Subscriptions") : "💳 " + t("Payments")}
           </button>
         ))}
       </div>
@@ -411,7 +417,7 @@ export default function SubscriptionsPage() {
             <Button onClick={() => setShowSubModal(true)}>+ Add Subscription</Button>
           </div>
           {subscriptions.length === 0 ? (
-            <EmptyState title="No subscriptions yet" hint="Create a plan and add subscriptions" />
+            <EmptyState title={t("No subscriptions yet")} hint={t("Create a plan and add subscriptions")} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-field-200 bg-white">
               <table className="min-w-full divide-y divide-field-200">
@@ -495,7 +501,7 @@ export default function SubscriptionsPage() {
       {tab === "payments" && (
         <div className="space-y-4">
           {subscriptions.length === 0 ? (
-            <EmptyState title="No subscriptions to show payments" hint="Add subscriptions first" />
+            <EmptyState title={t("No subscriptions to show payments")} hint={t("Add subscriptions first")} />
           ) : (
             <div className="grid gap-4">
               {subscriptions.map((sub) => (
@@ -507,7 +513,7 @@ export default function SubscriptionsPage() {
       )}
 
       {/* Plan Modal */}
-      <Modal open={showPlanModal} onClose={() => { setShowPlanModal(false); setEditingPlan(null); }} title="Plan">
+      <Modal open={showPlanModal} onClose={() => { setShowPlanModal(false); setEditingPlan(null); }} title={t("Plan")}>
         <div className="p-6">
           <h2 className="text-lg font-bold text-field-900">{editingPlan ? "Edit Plan" : "Add Plan"}</h2>
           <div className="mt-4 space-y-4">
@@ -565,7 +571,7 @@ export default function SubscriptionsPage() {
       </Modal>
 
       {/* Subscription Modal */}
-      <Modal open={showSubModal} onClose={() => setShowSubModal(false)} title="Add Subscription">
+      <Modal open={showSubModal} onClose={() => setShowSubModal(false)} title={t("Add Subscription")}>
         <div className="p-6">
           <h2 className="text-lg font-bold text-field-900">Add Subscription</h2>
           <div className="mt-4 space-y-4">
@@ -636,7 +642,7 @@ export default function SubscriptionsPage() {
       </Modal>
 
       {/* Payment Modal */}
-      <Modal open={showPaymentModal} onClose={() => { setShowPaymentModal(false); setSelectedSub(null); }} title="Record Payment">
+      <Modal open={showPaymentModal} onClose={() => { setShowPaymentModal(false); setSelectedSub(null); }} title={t("Record Payment")}>
         <div className="p-6">
           <h2 className="text-lg font-bold text-field-900">Record Payment</h2>
           {selectedSub && (
@@ -693,7 +699,7 @@ export default function SubscriptionsPage() {
         </div>
       </Modal>
       {/* Renew Modal */}
-      <Modal open={showRenewModal} onClose={() => { setShowRenewModal(false); setSelectedSub(null); }} title="Renew Subscription">
+      <Modal open={showRenewModal} onClose={() => { setShowRenewModal(false); setSelectedSub(null); }} title={t("Renew Subscription")}>
         <div className="p-6">
           {selectedSub && (
             <p className="mb-4 text-sm text-field-600">

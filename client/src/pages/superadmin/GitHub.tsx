@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -59,6 +60,7 @@ function Banner({ tone, children }: { tone: "success" | "error"; children: React
 }
 
 export default function GitHubPage() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<GitHubStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -127,7 +129,7 @@ export default function GitHubPage() {
   };
 
   if (!status) {
-    return <LoadingScreen label="Checking GitHub connection…" />;
+    return <LoadingScreen label={t("Checking GitHub connection…")} />;
   }
 
   const repoUrl = status.repo?.html_url ?? null;
@@ -136,14 +138,14 @@ export default function GitHubPage() {
   return (
     <div>
       <PageHeader
-        title="GitHub"
-        subtitle="Connect your project to GitHub — create the repository and push this codebase with one click."
+        title={t("GitHub")}
+        subtitle={t("Connect your project to GitHub — create the repository and push this codebase with one click.")}
         action={
           <Button variant="secondary" onClick={load} disabled={busy}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
-            Refresh
+            {t("Refresh")}
           </Button>
         }
       />
@@ -159,7 +161,7 @@ export default function GitHubPage() {
       )}
 
       {!status.configured ? (
-        <Card title="Connect your GitHub account" subtitle="One-time setup — add an API key, then come back here.">
+        <Card title={t("Connect your GitHub account")} subtitle={t("One-time setup — add an API key, then come back here.")}>
           <div className="space-y-4">
             <p className="text-sm text-field-600">
               This integration pushes the repository to <span className="font-semibold text-field-800">{target}</span>{" "}
@@ -234,7 +236,7 @@ export default function GitHubPage() {
 
           {/* Repository status + actions */}
           <Card
-            title="Repository"
+            title={t("Repository")}
             subtitle={`Target: ${target}`}
             action={
               status.repo ? (
@@ -302,7 +304,7 @@ export default function GitHubPage() {
           </Card>
 
           {/* Local state */}
-          <Card title="Local codebase" subtitle="What will be pushed">
+          <Card title={t("Local codebase")} subtitle={t("What will be pushed")}>
             {status.local?.commit ? (
               <div className="space-y-2 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
@@ -324,9 +326,9 @@ export default function GitHubPage() {
       )}
 
       {/* Create repo modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create GitHub repository">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("Create GitHub repository")}>
         <div className="space-y-4">
-          <Field label="Repository name" hint={`Will be created under ${status.user?.login ?? "your account"}`}>
+          <Field label={t("Repository name")} hint={t("Will be created under {login}", { login: status.user?.login ?? t("your account") })}>
             <Input
               value={repoName}
               onChange={(e) => setRepoName(e.target.value)}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import {
   Td,
 } from "../../components/ui";
 import { weekStartInput } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface PendingPayment {
   payment: {
@@ -47,6 +49,7 @@ interface HistoryRow {
 
 export default function PaymentsPage() {
   const { facilityId: fid } = useFacilityScope();
+  const { t } = useI18n();
   const [pending, setPending] = useState<PendingPayment[] | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
@@ -66,13 +69,13 @@ export default function PaymentsPage() {
   useEffect(load, [load]);
 
   async function processSunday() {
-    if (!confirm("Process Sunday payments for this week? This locks approved work as PAID.")) return;
+    if (!confirm(t("Process Sunday payments for this week? This locks approved work as PAID."))) return;
     setBusy(true);
     setNotice(null);
     try {
       const r = await post<{ processed: unknown[] }>(`/facility/${fid}/payments/process`, { weekStart });
       setNotice(
-        `Processed ${r.processed.length} supplier payment${r.processed.length === 1 ? "" : "s"}. Suppliers can now collect and distribute.`
+        t("Processed {n} supplier payments. Suppliers can now collect and distribute.", { n: r.processed.length })
       );
       load();
     } finally {
@@ -83,12 +86,15 @@ export default function PaymentsPage() {
   return (
     <div>
       <PageHeader
-        title="Sunday Payments"
-        subtitle="Calculate net payments: worker earnings − supplier rent charges"
+        title={t("Sunday Payments")}
+        subtitle={t("Calculate net payments: worker earnings − supplier rent charges")}
         action={
-          <Button variant="success" onClick={processSunday} loading={busy}>
-            Process Sunday payments
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ExportButtons reportType="payments" filters={{ from: weekStart }} />
+            <Button variant="success" onClick={processSunday} loading={busy}>
+              {t("Process Sunday payments")}
+            </Button>
+          </div>
         }
       />
 
@@ -99,19 +105,19 @@ export default function PaymentsPage() {
       )}
 
       <Card className="mb-5">
-        <Field label="Week starting">
+        <Field label={t("Week starting")}>
           <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
         </Field>
       </Card>
 
-      <Card title="Pending collections" subtitle="Net payment each supplier will collect from the facility">
+      <Card title={t("Pending collections")} subtitle={t("Net payment each supplier will collect from the facility")}>
         {!pending ? (
           <LoadingScreen />
         ) : pending.length === 0 ? (
-          <EmptyState title="No pending payments" hint="Process Sunday payments once summaries are approved" />
+          <EmptyState title={t("No pending payments")} hint={t("Process Sunday payments once summaries are approved")} />
         ) : (
           <Table
-            head={["Supplier", "Worker earnings", "Drops", "Rent charges", "Net payment", "Status"]}
+            head={[t("Supplier"), t("Worker earnings"), t("Drops"), t("Rent charges"), t("Net payment"), t("Status")]}
             empty={null}
           >
             {pending.map((r) => (
@@ -129,12 +135,12 @@ export default function PaymentsPage() {
       </Card>
 
       <div className="mt-6">
-        <Card title="Payment history" subtitle="All weekly supplier payments for this facility">
+        <Card title={t("Payment history")} subtitle={t("All weekly supplier payments for this facility")}>
           {history.length === 0 ? (
-            <EmptyState title="No payment history yet" />
+            <EmptyState title={t("No payment history yet")} />
           ) : (
             <Table
-              head={["Week", "Supplier", "Earnings", "Rent", "Net", "Method", "Status"]}
+              head={[t("Week"), t("Supplier"), t("Earnings"), t("Rent"), t("Net"), t("Method"), t("Status")]}
               empty={null}
             >
               {history.map((r) => (

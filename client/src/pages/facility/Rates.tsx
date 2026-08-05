@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -23,6 +24,7 @@ interface RateRow {
 
 export default function FacilityRatesPage() {
   const { facilityId: fid } = useFacilityScope();
+  const { t } = useI18n();
   const [facilityRates, setFacilityRates] = useState<RateRow[] | null>(null);
   const [globalRates, setGlobalRates] = useState<RateRow[]>([]);
   const [form, setForm] = useState({ bag_size_id: "", rate_amount: 0 });
@@ -51,26 +53,26 @@ export default function FacilityRatesPage() {
   return (
     <div>
       <PageHeader
-        title="Facility Rates"
-        subtitle="Facility-specific per-bag rates override the global defaults"
+        title={t("Facility Rates")}
+        subtitle={t("Facility-specific per-bag rates override the global defaults")}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Facility-specific rates" subtitle="These apply before global defaults">
-          <Table head={["Bag size", "Rate", "Scope"]} empty={null}>
+        <Card title={t("Facility-specific rates")} subtitle={t("These apply before global defaults")}>
+          <Table head={[t("Bag size"), t("Rate"), t("Scope")]} empty={null}>
             {facilityRates.map((r) => (
               <tr key={r.rate.id}>
                 <Td className="font-semibold text-field-900">{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
                 <Td><Money value={r.rate.rate_amount} /></Td>
-                <Td><Badge tone="blue">This facility</Badge></Td>
+                <Td><Badge tone="blue">{t("This facility")}</Badge></Td>
               </tr>
             ))}
           </Table>
         </Card>
 
         <div className="space-y-6">
-          <Card title="Global default rates" subtitle="Used when no facility rate exists">
-            <Table head={["Bag size", "Rate"]} empty={null}>
+          <Card title={t("Global default rates")} subtitle={t("Used when no facility rate exists")}>
+            <Table head={[t("Bag size"), t("Rate")]} empty={null}>
               {globalRates.map((r) => (
                 <tr key={r.rate.id}>
                   <Td className="font-semibold text-field-900">{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
@@ -80,9 +82,9 @@ export default function FacilityRatesPage() {
             </Table>
           </Card>
 
-          <Card title="Set facility rate" subtitle="Override the global rate for a bag size">
+          <Card title={t("Set facility rate")} subtitle={t("Override the global rate for a bag size")}>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="Bag size">
+              <Field label={t("Bag size")}>
                 <SearchableSelect
                   value={form.bag_size_id}
                   onChange={(v) => setForm({ ...form, bag_size_id: v })}
@@ -90,15 +92,15 @@ export default function FacilityRatesPage() {
                     value: r.bagSize.id,
                     label: `${r.bagSize.size_name} (${r.bagSize.weight_kg}kg)`,
                   }))}
-                  placeholder="Select bag size…"
-                  searchPlaceholder="Search bag sizes…"
+                  placeholder={t("Select bag size…")}
+                  searchPlaceholder={t("Search bag sizes…")}
                   required
                 />
               </Field>
-              <Field label="Facility rate (₹)">
+              <Field label={t("Facility rate (₹)")}>
                 <Input type="number" min={0} value={form.rate_amount} onChange={(e) => setForm({ ...form, rate_amount: Number(e.target.value) })} required />
               </Field>
-              <Button type="submit">Save facility rate</Button>
+              <Button type="submit">{t("Save facility rate")}</Button>
             </form>
           </Card>
         </div>

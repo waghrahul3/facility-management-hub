@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, post } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
+import ExportButtons from "../../components/ExportButtons";
 
 interface ThisWeek {
   weekStart: string;
@@ -49,6 +51,7 @@ interface PaymentPending {
 }
 
 export default function SupplierPaymentsPage() {
+  const { t } = useI18n();
   const [week, setWeek] = useState<ThisWeek | null>(null);
   const [pending, setPending] = useState<PaymentPending | null>(null);
   const [method, setMethod] = useState<"CASH" | "BANK_TRANSFER">("CASH");
@@ -69,7 +72,7 @@ export default function SupplierPaymentsPage() {
 
   useEffect(load, [load]);
 
-  if (!week || !pending) return <LoadingScreen label="Loading payment details…" />;
+  if (!week || !pending) return <LoadingScreen label={t("Loading payment details…")} />;
 
   const payment = pending.payment ?? pending.stored;
   const collectionStatus = payment?.collection_status ?? "PENDING";
@@ -88,7 +91,7 @@ export default function SupplierPaymentsPage() {
         payment_method: method,
         notes: notes || null,
       });
-      setNotice("Payment marked as collected from the facility. Now distribute to workers.");
+      setNotice(t("Payment marked as collected from the facility. Now distribute to workers."));
       load();
     } finally {
       setBusy(false);
@@ -99,7 +102,7 @@ export default function SupplierPaymentsPage() {
     const pay = pending?.payment;
     if (!pay) return;
     if (totalDistributed > pay.net_payment) {
-      setNotice("Distribution total exceeds the net payment!");
+      setNotice(t("Distribution total exceeds the net payment!"));
       return;
     }
     setBusy(true);
@@ -114,7 +117,7 @@ export default function SupplierPaymentsPage() {
           notes: notes || null,
         })),
       });
-      setNotice("Distribution recorded. Payment marked DISTRIBUTED_TO_WORKERS.");
+      setNotice(t("Distribution recorded. Payment marked DISTRIBUTED_TO_WORKERS."));
       load();
     } finally {
       setBusy(false);
@@ -127,8 +130,9 @@ export default function SupplierPaymentsPage() {
   return (
     <div>
       <PageHeader
-        title="Collect & Distribute"
-        subtitle="Sunday flow: collect from the facility, then distribute to toli leaders"
+        title={t("Collect & Distribute")}
+        subtitle={t("Sunday flow: collect from the facility, then distribute to toli leaders")}
+        action={<ExportButtons reportType="supplier-statements" />}
       />
 
       {notice && (
@@ -139,27 +143,27 @@ export default function SupplierPaymentsPage() {
 
       {/* Net payment breakdown */}
       <Card
-        title="Net payment for this week"
-        subtitle={`Week of ${fmtDate(week.weekStart)}`}
+        title={t("Net payment for this week")}
+        subtitle={t("Week of {date}", { date: fmtDate(week.weekStart) })}
         className="mb-6"
       >
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl bg-field-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-field-400">Worker earnings</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-field-400">{t("Worker earnings")}</p>
             <p className="mt-1 font-display text-xl font-bold text-field-900">
               <Money value={week.totalWorkerEarnings} />
             </p>
           </div>
           <div className="rounded-xl bg-field-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-field-400">
-              Rent charges ({week.totalDrops} drops)
+              {t("Rent charges ({count} drops)", { count: week.totalDrops })}
             </p>
             <p className="mt-1 font-display text-xl font-bold text-red-600">
               − <Money value={week.totalRent} />
             </p>
           </div>
           <div className="rounded-xl bg-onion-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-onion-600">Net to collect</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-onion-600">{t("Net to collect")}</p>
             <p className="mt-1 font-display text-xl font-bold text-onion-800">
               <Money value={payment?.net_payment ?? week.netPayment} />
             </p>
@@ -171,47 +175,48 @@ export default function SupplierPaymentsPage() {
       </Card>
 
       {/* Step 1: Collect */}
-      <Card title="Step 1 — Collect from facility" subtitle="Receive the net payment in cash or by bank transfer" className="mb-6">
+      <Card title={t("Step 1 — Collect from facility")} subtitle={t("Receive the net payment in cash or by bank transfer")} className="mb-6">
         {canCollect ? (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Payment method">
+              <Field label={t("Payment method")}>
                 <SearchableSelect
                   value={method}
                   onChange={(v) => setMethod(v as "CASH" | "BANK_TRANSFER")}
                   options={[
-                    { value: "CASH", label: "Cash" },
-                    { value: "BANK_TRANSFER", label: "Bank transfer" },
+                    { value: "CASH", label: t("Cash") },
+                    { value: "BANK_TRANSFER", label: t("Bank transfer") },
                   ]}
-                  placeholder="Select method…"
-                  searchPlaceholder="Search payment methods…"
+                  placeholder={t("Select method…")}
+                  searchPlaceholder={t("Search payment methods…")}
                 />
               </Field>
-              <Field label="Notes (optional)">
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. collected at facility office" />
+              <Field label={t("Notes (optional)")}>
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("e.g. collected at facility office")} />
               </Field>
             </div>
             <Button variant="success" onClick={collect} loading={busy}>
-              Mark collected — ₹{payment?.net_payment?.toLocaleString("en-IN")}
+              {t("Mark collected — ₹{amount}", { amount: payment?.net_payment?.toLocaleString("en-IN") ?? "0" })}
             </Button>
           </div>
         ) : collectionStatus === "COLLECTED_FROM_FACILITY" ? (
           <div className="rounded-lg bg-onion-50 px-4 py-3 text-sm text-onion-800">
-            ✅ Collected{payment?.payment_method ? ` via ${payment.payment_method.replace("_", " ")}` : ""}.
-            Proceed to distribution below.
+            {t("✅ Collected{via}. Proceed to distribution below.", {
+              via: payment?.payment_method ? ` via ${payment.payment_method.replace("_", " ")}` : "",
+            })}
           </div>
         ) : (
-          <EmptyState title="No payment ready yet" hint="The facility admin must process Sunday payments first" />
+          <EmptyState title={t("No payment ready yet")} hint={t("The facility admin must process Sunday payments first")} />
         )}
       </Card>
 
       {/* Step 2: Distribute */}
-      <Card title="Step 2 — Distribute to workers" subtitle="Record the amount given to each toli leader">
+      <Card title={t("Step 2 — Distribute to workers")} subtitle={t("Record the amount given to each toli leader")}>
         {approvedSummaries.length === 0 ? (
-          <EmptyState title="No approved toli earnings yet" />
+          <EmptyState title={t("No approved toli earnings yet")} />
         ) : (
           <>
-            <Table head={["Toli leader", "Earnings", "Distribute (₹)"]} empty={null}>
+            <Table head={[t("Toli leader"), t("Earnings"), t("Distribute (₹)")]} empty={null}>
               {approvedSummaries.map((s) => (
                 <tr key={s.summary.id}>
                   <Td className="font-semibold text-field-900">{s.toli.leader_name}</Td>
@@ -233,18 +238,18 @@ export default function SupplierPaymentsPage() {
             </Table>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-field-500">
-                {totalDistributed.toLocaleString("en-IN")} distributed ·{" "}
+                {t("{n} distributed", { n: totalDistributed.toLocaleString("en-IN") })} ·{" "}
                 <span className={remaining < 0 ? "font-semibold text-red-600" : "font-semibold text-onion-700"}>
-                  {remaining >= 0 ? `${remaining.toLocaleString("en-IN")} remaining` : `${(-remaining).toLocaleString("en-IN")} over`}
+                  {remaining >= 0 ? t("{n} remaining", { n: remaining.toLocaleString("en-IN") }) : t("{n} over", { n: (-remaining).toLocaleString("en-IN") })}
                 </span>
               </p>
               {canDistribute && (
                 <Button variant="success" onClick={distribute} loading={busy}>
-                  Record distribution
+                  {t("Record distribution")}
                 </Button>
               )}
               {collectionStatus === "DISTRIBUTED_TO_WORKERS" && (
-                <Badge tone="green">DISTRIBUTED TO WORKERS</Badge>
+                <Badge tone="green">{t("DISTRIBUTED TO WORKERS")}</Badge>
               )}
             </div>
           </>

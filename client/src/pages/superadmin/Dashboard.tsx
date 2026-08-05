@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import { Button, Card, EmptyState, LoadingScreen, StatCard } from "../../components/ui";
 
 interface DashboardData {
@@ -19,6 +20,7 @@ interface DashboardData {
 }
 
 export default function SuperAdminDashboard() {
+  const { t } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,35 +31,35 @@ export default function SuperAdminDashboard() {
   }, []);
 
   if (error) return <div className="text-red-600">{error}</div>;
-  if (!data) return <LoadingScreen label="Loading global overview…" />;
+  if (!data) return <LoadingScreen label={t("Loading global overview…")} />;
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-display text-2xl font-bold text-field-900">Global Overview</h1>
+        <h1 className="font-display text-2xl font-bold text-field-900">{t("Global Overview")}</h1>
         <p className="mt-1 text-sm text-field-500">
-          All facilities, suppliers, and admins across the network.
+          {t("All facilities, suppliers, and admins across the network.")}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Facilities" value={data.facilityCount} tone="green" icon={<span>🏭</span>} />
-        <StatCard label="Suppliers" value={data.supplierCount} tone="amber" icon={<span>🚚</span>} />
-        <StatCard label="Facility Admins" value={data.adminCount} tone="blue" icon={<span>👥</span>} />
+        <StatCard label={t("Facilities")} value={data.facilityCount} tone="green" icon={<span>🏭</span>} />
+        <StatCard label={t("Suppliers")} value={data.supplierCount} tone="amber" icon={<span>🚚</span>} />
+        <StatCard label={t("Facility Admins")} value={data.adminCount} tone="blue" icon={<span>👥</span>} />
       </div>
 
       <div className="mt-6">
         <Card
-          title="Recent facilities"
-          subtitle="Newest facilities registered in the network"
+          title={t("Recent facilities")}
+          subtitle={t("Newest facilities registered in the network")}
           action={
             <Link to="/facilities">
-              <Button variant="secondary" size="sm">Manage</Button>
+              <Button variant="secondary" size="sm">{t("Manage")}</Button>
             </Link>
           }
         >
           {data.facilities.length === 0 ? (
-            <EmptyState title="No facilities yet" hint="Create your first facility to get started" />
+            <EmptyState title={t("No facilities yet")} hint={t("Create your first facility to get started")} />
           ) : (
             <div className="divide-y divide-field-100">
               {data.facilities.map((f) => (
@@ -71,9 +73,9 @@ export default function SuperAdminDashboard() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-medium text-field-500">
-                      {f.admin ? f.admin.name : "No admin assigned"}
+                      {f.admin ? f.admin.name : t("No admin assigned")}
                     </p>
-                    <p className="text-[11px] text-field-400">Capacity: {f.capacity ?? 0}</p>
+                    <p className="text-[11px] text-field-400">{t("Capacity: {n}", { n: f.capacity ?? 0 })}</p>
                   </div>
                 </div>
               ))}

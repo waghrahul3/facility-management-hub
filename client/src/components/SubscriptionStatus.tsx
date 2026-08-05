@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Card, Spinner } from "./ui";
+import { useI18n } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -76,6 +77,7 @@ function statusColor(status: string): string {
 // ---------------------------------------------------------------------------
 
 export default function SubscriptionStatus({ compact = false }: { compact?: boolean }) {
+  const { t } = useI18n();
   const [data, setData] = useState<SubscriptionInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -102,8 +104,8 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
           <div className="flex items-center gap-3">
             <span className="text-2xl">📋</span>
             <div>
-              <p className="text-sm font-semibold text-field-800">No Active Subscription</p>
-              <p className="text-xs text-field-500">Contact admin to subscribe</p>
+              <p className="text-sm font-semibold text-field-800">{t("No Active Subscription")}</p>
+              <p className="text-xs text-field-500">{t("Contact admin to subscribe")}</p>
             </div>
           </div>
         </div>
@@ -125,7 +127,7 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
           </div>
           {daysRemaining !== null && (
             <span className={`text-xs font-medium ${isExpiringSoon ? "text-amber-600" : "text-field-500"}`}>
-              {daysRemaining > 0 ? `${daysRemaining} days left` : "Expired"}
+              {daysRemaining > 0 ? t("{n} days left", { n: daysRemaining }) : t("Expired")}
             </span>
           )}
         </div>
@@ -138,8 +140,8 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
       <div className="p-5">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-bold text-field-900">Subscription Status</h3>
-            <p className="text-sm text-field-500">Your active subscription plan</p>
+            <h3 className="text-lg font-bold text-field-900">{t("Subscription Status")}</h3>
+            <p className="text-sm text-field-500">{t("Your active subscription plan")}</p>
           </div>
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(subscription.status)}`}>
             {subscription.status}
@@ -148,11 +150,11 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
 
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs font-medium uppercase text-field-500">Plan</p>
+            <p className="text-xs font-medium uppercase text-field-500">{t("Plan")}</p>
             <p className="mt-1 text-sm font-semibold text-field-800">{subscription.plan_name}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase text-field-500">Price</p>
+            <p className="text-xs font-medium uppercase text-field-500">{t("Price")}</p>
             <p className="mt-1 text-sm font-semibold text-field-800">
               {formatMoney(subscription.plan_price)}
               <span className="text-xs font-normal text-field-500">
@@ -161,13 +163,13 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase text-field-500">Valid Until</p>
+            <p className="text-xs font-medium uppercase text-field-500">{t("Valid Until")}</p>
             <p className="mt-1 text-sm font-semibold text-field-800">{formatDate(subscription.end_date)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium uppercase text-field-500">Days Remaining</p>
+            <p className="text-xs font-medium uppercase text-field-500">{t("Days Remaining")}</p>
             <p className={`mt-1 text-sm font-semibold ${isExpiringSoon ? "text-amber-600" : "text-field-800"}`}>
-              {daysRemaining !== null && daysRemaining > 0 ? daysRemaining : "Expired"}
+              {daysRemaining !== null && daysRemaining > 0 ? daysRemaining : t("Expired")}
             </p>
           </div>
         </div>
@@ -178,8 +180,7 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
             <div className="flex items-center gap-2">
               <span className="text-amber-600">⚠️</span>
               <p className="text-sm text-amber-800">
-                Your subscription expires in <strong>{daysRemaining} days</strong>. 
-                Please renew to continue using all features.
+                {t("Your subscription expires in {n} days. Please renew to continue using all features.", { n: daysRemaining })}
               </p>
             </div>
           </div>
@@ -191,7 +192,7 @@ export default function SubscriptionStatus({ compact = false }: { compact?: bool
             {subscription.auto_renew ? "🔄" : "⏸️"}
           </span>
           <span>
-            Auto-renewal: <strong>{subscription.auto_renew ? "Enabled" : "Disabled"}</strong>
+            {t("Auto-renewal:")} <strong>{subscription.auto_renew ? t("Enabled") : t("Disabled")}</strong>
           </span>
         </div>
       </div>

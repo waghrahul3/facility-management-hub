@@ -66,7 +66,8 @@ async function resolveScope(req: any): Promise<ReportScope> {
       break;
     }
     case "TOLI_LEADER":
-      // Toli leader: limited scope — only summaries/distributions that mention their toli
+      // Toli leader: limited scope — only data that mentions their toli
+      scope.toliId = user.toliId ?? null;
       scope.facilityIds = user.facilityId ? [user.facilityId] : null;
       break;
   }
@@ -193,7 +194,7 @@ const ROLE_REPORTS: Record<string, string[]> = {
   SUPER_ADMIN: ["subscription-earnings", "subscription-monthly", "payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent"],
   COMPANY_ADMIN: ["payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent"],
   FACILITY_ADMIN: ["payments", "drops", "work", "summaries", "rent"],
-  SUPPLIER: ["supplier-statements", "distributions", "drops"],
+  SUPPLIER: ["supplier-statements", "distributions", "drops", "work"],
   TOLI_LEADER: ["summaries", "distributions", "work"],
 };
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -49,6 +50,7 @@ interface CompanyDashboardData {
 
 export default function CompanyDashboard() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const cid = user?.companyId;
   const [data, setData] = useState<CompanyDashboardData | null>(null);
 
@@ -57,9 +59,9 @@ export default function CompanyDashboard() {
     api<CompanyDashboardData>(`/company/${cid}/dashboard`).then(setData);
   }, [cid]);
 
-  if (!data) return <LoadingScreen label="Loading company overview…" />;
+  if (!data) return <LoadingScreen label={t("Loading company overview…")} />;
 
-  const t = data.totals;
+  const totals = data.totals;
 
   return (
     <div>
@@ -68,7 +70,7 @@ export default function CompanyDashboard() {
           {data.company.name}
         </h1>
         <p className="mt-1 text-sm text-field-500">
-          {data.company.city ?? "Company overview"} · Week of {fmtDate(data.weekStart)}
+          {data.company.city ?? t("Company overview")} · {t("Week of {date}", { date: fmtDate(data.weekStart) })}
         </p>
       </div>
 
@@ -76,26 +78,30 @@ export default function CompanyDashboard() {
       <SubscriptionStatus />
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Facilities" value={t.facilityCount} tone="green" icon={<span>🏭</span>} />
-        <StatCard label="Drops this week" value={t.weekDropCount} tone="blue" icon={<span>🚚</span>} />
-        <StatCard label="Tolis" value={t.toliCount} tone="amber" icon={<span>👥</span>} />
-        <StatCard label="Pending payments" value={t.pendingPaymentCount} tone="violet" icon={<span>💰</span>} />
+        <StatCard label={t("Facilities")} value={totals.facilityCount} tone="green" icon={<span>🏭</span>} />
+        <StatCard label={t("Drops this week")} value={totals.weekDropCount} tone="blue" icon={<span>🚚</span>} />
+        <StatCard label={t("Tolis")} value={totals.toliCount} tone="amber" icon={<span>👥</span>} />
+        <StatCard label={t("Pending payments")} value={totals.pendingPaymentCount} tone="violet" icon={<span>💰</span>} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card
-          title="Facilities"
-          subtitle={`${t.facilityCount} facility${t.facilityCount === 1 ? "" : "s"} under ${data.company.name} · week rent ₹${t.weekRentTotal.toLocaleString("en-IN")}`}
+          title={t("Facilities")}
+          subtitle={t("{count} facilities under {name} · week rent ₹{rent}", {
+            count: totals.facilityCount,
+            name: data.company.name,
+            rent: totals.weekRentTotal.toLocaleString("en-IN"),
+          })}
           action={
             <Link to="/company/facilities">
-              <Button variant="secondary" size="sm">View all</Button>
+              <Button variant="secondary" size="sm">{t("View all")}</Button>
             </Link>
           }
         >
           {data.facilityStats.length === 0 ? (
-            <EmptyState icon="🏭" title="No facilities yet" hint="Add your first facility" />
+            <EmptyState icon="🏭" title={t("No facilities yet")} hint={t("Add your first facility")} />
           ) : (
-            <Table head={["Facility", "Drops", "Tolis", "Pending"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
+            <Table head={[t("Facility"), t("Drops"), t("Tolis"), t("Pending")].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
               {data.facilityStats.map((fs) => (
                 <tr key={fs.facility.id} className="hover:bg-field-50/50">
                   <Td className="font-medium">{fs.facility.name}</Td>
@@ -112,11 +118,11 @@ export default function CompanyDashboard() {
           )}
         </Card>
 
-        <Card title="Pending Payments" subtitle="Sunday collections ready">
+        <Card title={t("Pending Payments")} subtitle={t("Sunday collections ready")}>
           {data.pendingPayments.length === 0 ? (
-            <EmptyState icon="💰" title="No pending payments" hint="All clear this week" />
+            <EmptyState icon="💰" title={t("No pending payments")} hint={t("All clear this week")} />
           ) : (
-            <Table head={["Supplier", "Facility", "Amount", "Status"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
+            <Table head={[t("Supplier"), t("Facility"), t("Amount"), t("Status")].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">{h}</th>)}>
               {data.pendingPayments.map((pp) => (
                 <tr key={pp.payment.id} className="hover:bg-field-50/50">
                   <Td className="font-medium">{pp.supplier.name}</Td>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, post } from "../../lib/api";
+import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
@@ -46,6 +47,7 @@ const emptyForm = {
 const emptyLoginForm = { email: "", password: "" };
 
 export default function SuppliersPage() {
+  const { t } = useI18n();
   const [suppliers, setSuppliers] = useState<SupplierRow[] | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -85,9 +87,9 @@ export default function SuppliersPage() {
         form.create_login
           ? {
               kind: "success",
-              text: `Supplier “${form.name}” created with a login for ${emailForLogin}.\n\nPassword: ${form.password} — share these with the supplier.`,
+              text: t("Supplier “{name}” created with a login for {email}.\n\nPassword: {password} — share these with the supplier.", { name: form.name, email: emailForLogin, password: form.password }),
             }
-          : { kind: "success", text: `Supplier “${form.name}” created.` }
+          : { kind: "success", text: t("Supplier “{name}” created.", { name: form.name }) }
       );
       setShowModal(false);
       setForm(emptyForm);
@@ -95,7 +97,7 @@ export default function SuppliersPage() {
     } catch (err) {
       setNotice({
         kind: "error",
-        text: err instanceof Error ? err.message : "Failed to create supplier",
+        text: err instanceof Error ? err.message : t("Failed to create supplier"),
       });
     } finally {
       setBusy(false);
@@ -119,7 +121,11 @@ export default function SuppliersPage() {
       });
       setNotice({
         kind: "success",
-        text: `Login generated for “${loginTarget.name}”.\n\nEmail: ${loginForm.email.trim().toLowerCase()}\nPassword: ${loginForm.password}\n\nShare these with the supplier — they are now active and selectable at every facility.`,
+        text: t("Login generated for “{name}”.\n\nEmail: {email}\nPassword: {password}\n\nShare these with the supplier — they are now active and selectable at every facility.", {
+          name: loginTarget.name,
+          email: loginForm.email.trim().toLowerCase(),
+          password: loginForm.password,
+        }),
       });
       setLoginTarget(null);
       setLoginForm(emptyLoginForm);
@@ -127,7 +133,7 @@ export default function SuppliersPage() {
     } catch (err) {
       setNotice({
         kind: "error",
-        text: err instanceof Error ? err.message : "Failed to generate login",
+        text: err instanceof Error ? err.message : t("Failed to generate login"),
       });
     } finally {
       setLoginBusy(false);
@@ -139,9 +145,9 @@ export default function SuppliersPage() {
   return (
     <div>
       <PageHeader
-        title="Suppliers"
-        subtitle="Global supplier registry — facility-added suppliers activate after a login is generated"
-        action={<Button onClick={() => setShowModal(true)}>+ New supplier</Button>}
+        title={t("Suppliers")}
+        subtitle={t("Global supplier registry — facility-added suppliers activate after a login is generated")}
+        action={<Button onClick={() => setShowModal(true)}>{t("+ New supplier")}</Button>}
       />
 
       {notice && (
@@ -162,9 +168,9 @@ export default function SuppliersPage() {
             {pendingCount}
           </span>
           <p>
-            <strong>Awaiting activation.</strong>{" "}
-            {pendingCount === 1 ? "This supplier was added by a facility" : "These suppliers were added by facilities"}{" "}
-            and becomes selectable at every facility only after you generate their login below.
+            <strong>{t("Awaiting activation.")}</strong>{" "}
+            {pendingCount === 1 ? t("This supplier was added by a facility") : t("These suppliers were added by facilities")}{" "}
+            {t("and becomes selectable at every facility only after you generate their login below.")}
           </p>
         </div>
       )}
@@ -172,10 +178,10 @@ export default function SuppliersPage() {
       {!suppliers ? (
         <LoadingScreen />
       ) : suppliers.length === 0 ? (
-        <Card><EmptyState title="No suppliers yet" hint="Register the first supplier" /></Card>
+        <Card><EmptyState title={t("No suppliers yet")} hint={t("Register the first supplier")} /></Card>
       ) : (
         <Card>
-          <Table head={["Supplier", "Contact", "Phone", "Added by", "Status", "Login"]} empty={null}>
+          <Table head={[t("Supplier"), t("Contact"), t("Phone"), t("Added by"), t("Status"), t("Login")]} empty={null}>
             {suppliers.map((r) => (
               <tr key={r.supplier.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{r.supplier.name}</Td>
@@ -189,29 +195,29 @@ export default function SuppliersPage() {
                 <Td>
                   {r.facility ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <Badge tone="slate">Facility</Badge>
+                      <Badge tone="slate">{t("Facility")}</Badge>
                       <span className="text-xs text-field-600">{r.facility.name}</span>
                     </span>
                   ) : (
-                    <Badge tone="slate">Global</Badge>
+                    <Badge tone="slate">{t("Global")}</Badge>
                   )}
                 </Td>
                 <Td>
                   {r.supplier.status === "PENDING" ? (
                     <StatusBadge status="PENDING" />
                   ) : (
-                    <Badge tone="green">Active</Badge>
+                    <Badge tone="green">{t("Active")}</Badge>
                   )}
                 </Td>
                 <Td>
                   {r.user ? (
                     <div className="flex flex-col items-start gap-0.5">
-                      <Badge tone="green">Has login</Badge>
+                      <Badge tone="green">{t("Has login")}</Badge>
                       <span className="text-[11px] text-field-400">{r.user.email}</span>
                     </div>
                   ) : (
                     <Button size="sm" variant="secondary" onClick={() => openLogin(r.supplier)}>
-                      Generate login
+                      {t("Generate login")}
                     </Button>
                   )}
                 </Td>
@@ -221,30 +227,30 @@ export default function SuppliersPage() {
         </Card>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="New supplier">
+      <Modal open={showModal} onClose={() => setShowModal(false)} title={t("New supplier")}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-            Globally registered suppliers are active immediately and selectable at every facility.
+            {t("Globally registered suppliers are active immediately and selectable at every facility.")}
           </div>
-          <Field label="Supplier name">
+          <Field label={t("Supplier name")}>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Email">
+            <Field label={t("Email")}>
               <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </Field>
-            <Field label="Phone">
+            <Field label={t("Phone")}>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </Field>
           </div>
-          <Field label="Contact person">
+          <Field label={t("Contact person")}>
             <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Address">
+            <Field label={t("Address")}>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </Field>
-            <Field label="City">
+            <Field label={t("City")}>
               <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             </Field>
           </div>
@@ -256,11 +262,11 @@ export default function SuppliersPage() {
               onChange={(e) => setForm({ ...form, create_login: e.target.checked })}
               className="h-4 w-4 rounded border-field-300 text-onion-700 focus:ring-onion-600"
             />
-            Create a supplier login account
+            {t("Create a supplier login account")}
           </label>
 
           {form.create_login && (
-            <Field label="Login password" hint="The supplier signs in with the email above and this password">
+            <Field label={t("Login password")} hint={t("The supplier signs in with the email above and this password")}>
               <Input
                 type="password"
                 value={form.password}
@@ -271,8 +277,8 @@ export default function SuppliersPage() {
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" loading={busy}>Create supplier</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={busy}>{t("Create supplier")}</Button>
           </div>
         </form>
       </Modal>
@@ -280,15 +286,15 @@ export default function SuppliersPage() {
       <Modal
         open={loginTarget !== null}
         onClose={() => setLoginTarget(null)}
-        title={loginTarget ? `Generate login — ${loginTarget.name}` : "Generate login"}
+        title={loginTarget ? t("Generate login — {name}", { name: loginTarget.name }) : t("Generate login")}
       >
         <form onSubmit={handleGenerateLogin} className="space-y-4">
           <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {loginTarget?.facility_id
-              ? "Registered by a facility and awaiting activation. Generating the login makes this supplier ACTIVE and selectable at every facility."
-              : "This supplier has no login yet. Generating one also marks them ACTIVE."}
+              ? t("Registered by a facility and awaiting activation. Generating the login makes this supplier ACTIVE and selectable at every facility.")
+              : t("This supplier has no login yet. Generating one also marks them ACTIVE.")}
           </div>
-          <Field label="Login email">
+          <Field label={t("Login email")}>
             <Input
               type="email"
               value={loginForm.email}
@@ -296,7 +302,7 @@ export default function SuppliersPage() {
               required
             />
           </Field>
-          <Field label="Password" hint="The supplier signs in with this password">
+          <Field label={t("Password")} hint={t("The supplier signs in with this password")}>
             <Input
               type="password"
               value={loginForm.password}
@@ -305,8 +311,8 @@ export default function SuppliersPage() {
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setLoginTarget(null)}>Cancel</Button>
-            <Button type="submit" loading={loginBusy}>Generate &amp; activate</Button>
+            <Button type="button" variant="secondary" onClick={() => setLoginTarget(null)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={loginBusy}>{t("Generate & activate")}</Button>
           </div>
         </form>
       </Modal>

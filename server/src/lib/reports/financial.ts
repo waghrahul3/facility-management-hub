@@ -160,6 +160,8 @@ export async function dropsLedger(scope: ReportScope, f: ReportFilters): Promise
 export async function workLedger(scope: ReportScope, f: ReportFilters): Promise<Report> {
   const where = [];
   if (scope.facilityIds) where.push(inArray(workEntries.facility_id, scope.facilityIds));
+  if (scope.supplierId) where.push(eq(supplierDrops.supplier_id, scope.supplierId));
+  if (scope.toliId) where.push(eq(workEntries.toli_id, scope.toliId));
   if (f.facilityId) where.push(eq(workEntries.facility_id, f.facilityId));
   if (f.from) where.push(gte(workEntries.work_date, new Date(f.from)));
   if (f.to) where.push(lte(workEntries.work_date, endOfDay(f.to)));
@@ -170,6 +172,7 @@ export async function workLedger(scope: ReportScope, f: ReportFilters): Promise<
       toliName: tolis.leader_name,
       supplierName: suppliers.name,
       bagSize: bagSizes.size_name,
+      onionCategory: workEntries.onion_category,
       weightKg: bagSizes.weight_kg,
       qty: workEntries.quantity_bags,
       rate: workEntries.rate_per_bag,
@@ -204,6 +207,7 @@ export async function workLedger(scope: ReportScope, f: ReportFilters): Promise<
       { key: "toliName", label: "Toli / Leader", type: "text" },
       { key: "supplierName", label: "Supplier", type: "text" },
       { key: "bagSize", label: "Bag size", type: "text" },
+      { key: "onionCategory", label: "Onion category", type: "text" },
       { key: "qty", label: "Bags", type: "number" },
       { key: "rate", label: "Rate", type: "money" },
       { key: "amount", label: "Amount", type: "money" },
@@ -234,6 +238,7 @@ export async function summariesLedger(scope: ReportScope, f: ReportFilters): Pro
   const where = [];
   if (scope.facilityIds) where.push(inArray(weeklyWorkSummaries.facility_id, scope.facilityIds));
   if (scope.supplierId) where.push(eq(weeklyWorkSummaries.supplier_id, scope.supplierId));
+  if (scope.toliId) where.push(eq(weeklyWorkSummaries.toli_id, scope.toliId));
   if (f.facilityId) where.push(eq(weeklyWorkSummaries.facility_id, f.facilityId));
   if (f.supplierId) where.push(eq(weeklyWorkSummaries.supplier_id, f.supplierId));
   if (f.from) where.push(gte(weeklyWorkSummaries.week_start_date, new Date(f.from)));
@@ -310,6 +315,7 @@ export async function distributionsLedger(scope: ReportScope, f: ReportFilters):
   const where = [];
   if (scope.facilityIds) where.push(inArray(supplierPayments.facility_id, scope.facilityIds));
   if (scope.supplierId) where.push(eq(supplierPayments.supplier_id, scope.supplierId));
+  if (scope.toliId) where.push(eq(supplierPaymentDistributions.toli_id, scope.toliId));
   if (f.facilityId) where.push(eq(supplierPayments.facility_id, f.facilityId));
   if (f.supplierId) where.push(eq(supplierPayments.supplier_id, f.supplierId));
   if (f.from) where.push(gte(supplierPaymentDistributions.distribution_date, new Date(f.from)));
