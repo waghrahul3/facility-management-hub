@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -24,6 +25,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export function createApp() {
   const app = express();
 
+  // Security headers. CSP and COEP are disabled so the SPA and Vite dev server
+  // (inline styles, cross-origin API) keep working; the rest of helmet's
+  // headers (nosniff, X-Frame-Options, HSTS, etc.) are applied.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    })
+  );
   app.use(cors());
   app.use(express.json({ limit: "1mb" }));
 

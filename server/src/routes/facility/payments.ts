@@ -1,0 +1,119 @@
+import { Router } from "express";
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "../../db/index.js";
+import { suppliers, supplierPayments } from "../../db/schema.js";
+import { requireFacilityAccess } from "../../auth/middleware.js";
+import { audit } from "../../lib/audit.js";
+import { asyncHandler } from "../../lib/errors.js";
+import { param } from "../../lib/params.js";
+import { computeSupplierWeekPayment, processSupplierPayments } from "../../services/payments.js";
+import { weekParams } from "./_shared.js";
+
+const router = Router();
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+router.get(
+  "/:facilityId/payments/pending",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
+    const rows = await db
+      .select({
+        payment: {
+          id: supplierPayments.id,
+          supplier_id: supplierPayments.supplier_id,
+          week_start_date: supplierPayments.week_start_date,
+          total_worker_earnings: supplierPayments.total_worker_earnings,
+          total_drops: supplierPayments.total_drops,
+          total_rent_charges: supplierPayments.total_rent_charges,
+          net_payment: supplierPayments.net_payment,
+          collection_status: supplierPayments.collection_status,
+          payment_method: supplierPayments.payment_method,
+        },
+        supplier: { id: suppliers.id, name: suppliers.name },
+      })
+      .from(supplierPayments)
+      .innerJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
+      .where(
+        and(
+          eq(supplierPayments.facility_id, param(req, "facilityId")),
+          eq(supplierPayments.week_start_date, weekStart)
+        )
+      )
+      .orderBy(desc(supplierPayments.net_payment));
+    return res.json({ payments: rows });
+  })
+);
+
+// Supplier payment detail (used by both facility admin and supplier)
+router.get(
+  "/:facilityId/supplier/:supplierId/payment",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
+    const payment = await computeSupplierWeekPayment(
+      param(req, "facilityId"),
+      param(req, "supplierId"),
+      weekStart,
+      weekEnd
+    );
+    const stored = await db
+      .select()
+      .from(supplierPayments)
+      .where(
+        and(
+          eq(supplierPayments.facility_id, param(req, "facilityId")),
+          eq(supplierPayments.supplier_id, param(req, "supplierId")),
+          eq(supplierPayments.week_start_date, weekStart)
+        )
+      )
+      .limit(1);
+    return res.json({ payment, stored: stored[0] ?? null });
+  })
+);
+
+router.post(
+  "/:facilityId/payments/process",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const { weekStart, weekEnd } = weekParams((req.body ?? {}) as Record<string, unknown>);
+    const results = await processSupplierPayments(
+      param(req, "facilityId"),
+      weekStart,
+      weekEnd
+    );
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "SUPPLIER_PAYMENT",
+      entityId: param(req, "facilityId"),
+      newValues: { weekStart, results },
+    });
+    return res.json({ processed: results });
+  })
+);
+
+router.get(
+  "/:facilityId/payments/history",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const rows = await db
+      .select({
+        payment: supplierPayments,
+        supplier: { id: suppliers.id, name: suppliers.name },
+      })
+      .from(supplierPayments)
+      .innerJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
+      .where(eq(supplierPayments.facility_id, param(req, "facilityId")))
+      .orderBy(desc(supplierPayments.week_start_date))
+      .limit(100);
+    return res.json({ payments: rows });
+  })
+);
+
+export default router;

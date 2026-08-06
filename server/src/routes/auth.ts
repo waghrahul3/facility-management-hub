@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { and, eq, isNull } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db/index.js";
@@ -11,6 +12,17 @@ import { asyncHandler, badRequest, unauthorized } from "../lib/errors.js";
 import { logger, reqLogger } from "../lib/logger.js";
 
 const router = Router();
+
+// Brute-force protection: max 5 login attempts per 15 minutes per IP.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: "Too many login attempts. Please try again in 15 minutes.",
+  },
+});
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -95,6 +107,7 @@ async function issueTokens(user: typeof users.$inferSelect) {
 // POST /api/auth/login
 router.post(
   "/login",
+  loginLimiter,
   asyncHandler(async (req, res) => {
     const { emailOrPhone, password } = req.body ?? {};
     const log = reqLogger({ method: req.method, path: req.originalUrl });

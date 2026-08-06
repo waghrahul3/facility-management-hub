@@ -1,124 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useI18n } from "../../i18n";
-import {
-  Card,
-  StatCard,
-  Modal,
-  Button,
-  Field,
-  Input,
-  Select,
-  StatusBadge,
-  EmptyState,
-  Spinner,
-} from "../../components/ui";
+import { Button, Card, EmptyState, Modal, Spinner, StatCard } from "../../components/ui";
 import ExportButtons from "../../components/ExportButtons";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  type: "COMPANY" | "SUPPLIER";
-  price: number;
-  billing_cycle: string;
-  description: string | null;
-  features: string[] | null;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface Subscription {
-  id: string;
-  status: "ACTIVE" | "EXPIRED" | "PENDING" | "CANCELLED";
-  start_date: string;
-  end_date: string;
-  auto_renew: boolean;
-  notes: string | null;
-  created_at: string;
-  plan_id: string;
-  plan_name: string;
-  plan_type: string;
-  plan_price: number;
-  company_id: string | null;
-  company_name: string | null;
-  supplier_id: string | null;
-  supplier_name: string | null;
-}
-
-interface SubscriptionPayment {
-  id: string;
-  subscription_id: string;
-  amount: number;
-  payment_date: string;
-  payment_method: string;
-  reference_number: string | null;
-  notes: string | null;
-  created_at: string;
-}
-
-interface SubscriptionStats {
-  active: number;
-  expired: number;
-  pending: number;
-  totalRevenue: number;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function formatDate(d: string): string {
-  return new Date(d).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function cycleLabel(cycle: string): string {
-  switch (cycle) {
-    case "quarterly":
-      return "quarter (3 mo)";
-    case "half-yearly":
-      return "6 months";
-    case "yearly":
-    case "annually":
-      return "year";
-    default:
-      return "month";
-  }
-}
-
-function statusColor(status: string): string {
-  switch (status) {
-    case "ACTIVE":
-      return "bg-green-100 text-green-800 border border-green-200";
-    case "EXPIRED":
-      return "bg-red-100 text-red-800 border border-red-200";
-    case "PENDING":
-      return "bg-amber-100 text-amber-800 border border-amber-200";
-    case "CANCELLED":
-      return "bg-slate-100 text-slate-700 border border-slate-200";
-    default:
-      return "bg-slate-100 text-slate-700";
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+import PlanModal from "./subscriptions/PlanModal";
+import SubscriptionModal from "./subscriptions/SubscriptionModal";
+import PaymentModal from "./subscriptions/PaymentModal";
+import RenewModal from "./subscriptions/RenewModal";
+import SubscriptionPayments from "./subscriptions/SubscriptionPayments";
+import { cycleLabel, formatDate, formatMoney, statusColor } from "./subscriptions/helpers";
+import type { EntityOption, Subscription, SubscriptionPlan, SubscriptionStats } from "./subscriptions/types";
 
 export default function SubscriptionsPage() {
   const { t } = useI18n();
@@ -133,38 +24,13 @@ export default function SubscriptionsPage() {
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [showSubModal, setShowSubModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
-  const [renewalNotes, setRenewalNotes] = useState("");
   const [expiringCount, setExpiringCount] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedSub, setSelectedSub] = useState<Subscription | null>(null);
 
-  // Form states
-  const [planForm, setPlanForm] = useState({
-    name: "",
-    type: "COMPANY" as "COMPANY" | "SUPPLIER",
-    price: 500,
-    billing_cycle: "monthly",
-    description: "",
-  });
-  const [subForm, setSubForm] = useState({
-    plan_id: "",
-    company_id: "",
-    supplier_id: "",
-    start_date: "",
-    end_date: "",
-    notes: "",
-  });
-  const [paymentForm, setPaymentForm] = useState({
-    amount: 0,
-    payment_date: new Date().toISOString().split("T")[0],
-    payment_method: "CASH",
-    reference_number: "",
-    notes: "",
-  });
-
   // Entity lists
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
-  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [companies, setCompanies] = useState<EntityOption[]>([]);
+  const [suppliers, setSuppliers] = useState<EntityOption[]>([]);
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -182,6 +48,9 @@ export default function SubscriptionsPage() {
       setStats(statsRes);
       setCompanies(companiesRes.companies.map((c) => ({ id: c.company.id, name: c.company.name })));
       setSuppliers(suppliersRes.suppliers.map((s) => ({ id: s.id, name: s.name })));
+      void api<{ expiring: unknown[] }>("/subscriptions/alerts/expiring?days=7").then((r) =>
+        setExpiringCount(r.expiring.length)
+      );
     } catch (err) {
       console.error("Failed to fetch subscriptions:", err);
     } finally {
@@ -194,21 +63,21 @@ export default function SubscriptionsPage() {
   }, [fetchData]);
 
   // Plan CRUD
-  const handleCreatePlan = async () => {
+  const handleCreatePlan = async (values: Parameters<Parameters<typeof PlanModal>[0]["onSave"]>[0]) => {
     try {
-      await api("/subscriptions/plans", { method: "POST", body: planForm });
+      await api("/subscriptions/plans", { method: "POST", body: values });
       setShowPlanModal(false);
-      setPlanForm({ name: "", type: "COMPANY", price: 500, billing_cycle: "monthly", description: "" });
+      setEditingPlan(null);
       fetchData();
     } catch (err: any) {
       alert(err.message);
     }
   };
 
-  const handleUpdatePlan = async () => {
+  const handleUpdatePlan = async (values: Parameters<Parameters<typeof PlanModal>[0]["onSave"]>[0]) => {
     if (!editingPlan) return;
     try {
-      await api(`/subscriptions/plans/${editingPlan.id}`, { method: "PUT", body: planForm });
+      await api(`/subscriptions/plans/${editingPlan.id}`, { method: "PUT", body: values });
       setShowPlanModal(false);
       setEditingPlan(null);
       fetchData();
@@ -228,11 +97,10 @@ export default function SubscriptionsPage() {
   };
 
   // Subscription CRUD
-  const handleCreateSub = async () => {
+  const handleCreateSub = async (values: Parameters<Parameters<typeof SubscriptionModal>[0]["onSave"]>[0]) => {
     try {
-      await api("/subscriptions", { method: "POST", body: subForm });
+      await api("/subscriptions", { method: "POST", body: values });
       setShowSubModal(false);
-      setSubForm({ plan_id: "", company_id: "", supplier_id: "", start_date: "", end_date: "", notes: "" });
       fetchData();
     } catch (err: any) {
       alert(err.message);
@@ -248,13 +116,12 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const handleRenew = async () => {
+  const handleRenew = async (notes: string) => {
     if (!selectedSub) return;
     try {
-      await api(`/subscriptions/${selectedSub.id}/renew`, { method: "POST", body: { notes: renewalNotes } });
+      await api(`/subscriptions/${selectedSub.id}/renew`, { method: "POST", body: { notes } });
       setShowRenewModal(false);
       setSelectedSub(null);
-      setRenewalNotes("");
       fetchData();
     } catch (err: any) {
       alert(err.message);
@@ -272,10 +139,10 @@ export default function SubscriptionsPage() {
   };
 
   // Payment recording
-  const handleRecordPayment = async () => {
+  const handleRecordPayment = async (values: Parameters<Parameters<typeof PaymentModal>[0]["onSave"]>[0]) => {
     if (!selectedSub) return;
     try {
-      await api(`/subscriptions/${selectedSub.id}/payments`, { method: "POST", body: paymentForm });
+      await api(`/subscriptions/${selectedSub.id}/payments`, { method: "POST", body: values });
       setShowPaymentModal(false);
       setSelectedSub(null);
       fetchData();
@@ -381,13 +248,6 @@ export default function SubscriptionsPage() {
                       variant="secondary"
                       onClick={() => {
                         setEditingPlan(plan);
-                        setPlanForm({
-                          name: plan.name,
-                          type: plan.type,
-                          price: plan.price,
-                          billing_cycle: plan.billing_cycle,
-                          description: plan.description || "",
-                        });
                         setShowPlanModal(true);
                       }}
                     >
@@ -471,18 +331,20 @@ export default function SubscriptionsPage() {
                               <button
                                 onClick={() => {
                                   setSelectedSub(sub);
-                                  setPaymentForm({
-                                    amount: sub.plan_price,
-                                    payment_date: new Date().toISOString().split("T")[0],
-                                    payment_method: "CASH",
-                                    reference_number: "",
-                                    notes: "",
-                                  });
                                   setShowPaymentModal(true);
                                 }}
                                 className="rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
                               >
                                 Record Payment
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedSub(sub);
+                                  setShowRenewModal(true);
+                                }}
+                                className="rounded px-2 py-1 text-xs text-green-700 hover:bg-green-50"
+                              >
+                                Renew
                               </button>
                             </>
                           )}
@@ -512,269 +374,33 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {/* Plan Modal */}
-      <Modal open={showPlanModal} onClose={() => { setShowPlanModal(false); setEditingPlan(null); }} title={t("Plan")}>
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-field-900">{editingPlan ? "Edit Plan" : "Add Plan"}</h2>
-          <div className="mt-4 space-y-4">
-            <Field label="Plan Name">
-              <Input
-                value={planForm.name}
-                onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                placeholder="e.g., Company Monthly"
-              />
-            </Field>
-            <Field label="Type">
-              <Select
-                value={planForm.type}
-                onChange={(e) => setPlanForm({ ...planForm, type: e.target.value as "COMPANY" | "SUPPLIER" })}
-              >
-                <option value="COMPANY">Company</option>
-                <option value="SUPPLIER">Supplier</option>
-              </Select>
-            </Field>
-            <Field label="Price (₹)">
-              <Input
-                type="number"
-                value={planForm.price}
-                onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })}
-              />
-            </Field>
-            <Field label="Billing Cycle">
-              <Select
-                value={planForm.billing_cycle}
-                onChange={(e) => setPlanForm({ ...planForm, billing_cycle: e.target.value })}
-              >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly (3 months)</option>
-                <option value="half-yearly">Half-Yearly (6 months)</option>
-                <option value="yearly">Yearly (12 months)</option>
-              </Select>
-            </Field>
-            <Field label="Description">
-              <Input
-                value={planForm.description}
-                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                placeholder="Optional description"
-              />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setShowPlanModal(false); setEditingPlan(null); }}>
-                Cancel
-              </Button>
-              <Button onClick={editingPlan ? handleUpdatePlan : handleCreatePlan}>
-                {editingPlan ? "Update" : "Create"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Subscription Modal */}
-      <Modal open={showSubModal} onClose={() => setShowSubModal(false)} title={t("Add Subscription")}>
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-field-900">Add Subscription</h2>
-          <div className="mt-4 space-y-4">
-            <Field label="Plan">
-              <Select
-                value={subForm.plan_id}
-                onChange={(e) => setSubForm({ ...subForm, plan_id: e.target.value })}
-              >
-                <option value="">Select plan...</option>
-                {plans.filter((p) => p.is_active).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.type}) — {formatMoney(p.price)}/{p.billing_cycle}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Company (for Company plans)">
-              <Select
-                value={subForm.company_id}
-                onChange={(e) => setSubForm({ ...subForm, company_id: e.target.value })}
-              >
-                <option value="">Select company...</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Supplier (for Supplier plans)">
-              <Select
-                value={subForm.supplier_id}
-                onChange={(e) => setSubForm({ ...subForm, supplier_id: e.target.value })}
-              >
-                <option value="">Select supplier...</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Start Date">
-                <Input
-                  type="date"
-                  value={subForm.start_date}
-                  onChange={(e) => setSubForm({ ...subForm, start_date: e.target.value })}
-                />
-              </Field>
-              <Field label="End Date">
-                <Input
-                  type="date"
-                  value={subForm.end_date}
-                  onChange={(e) => setSubForm({ ...subForm, end_date: e.target.value })}
-                />
-              </Field>
-            </div>
-            <Field label="Notes">
-              <Input
-                value={subForm.notes}
-                onChange={(e) => setSubForm({ ...subForm, notes: e.target.value })}
-                placeholder="Optional notes"
-              />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setShowSubModal(false)}>Cancel</Button>
-              <Button onClick={handleCreateSub}>Create</Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Payment Modal */}
-      <Modal open={showPaymentModal} onClose={() => { setShowPaymentModal(false); setSelectedSub(null); }} title={t("Record Payment")}>
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-field-900">Record Payment</h2>
-          {selectedSub && (
-            <p className="mt-1 text-sm text-field-500">
-              {selectedSub.company_name || selectedSub.supplier_name} — {selectedSub.plan_name}
-            </p>
-          )}
-          <div className="mt-4 space-y-4">
-            <Field label="Amount (₹)">
-              <Input
-                type="number"
-                value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: Number(e.target.value) })}
-              />
-            </Field>
-            <Field label="Payment Date">
-              <Input
-                type="date"
-                value={paymentForm.payment_date}
-                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-              />
-            </Field>
-            <Field label="Payment Method">
-              <Select
-                value={paymentForm.payment_method}
-                onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
-              >
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="UPI">UPI</option>
-              </Select>
-            </Field>
-            <Field label="Reference Number">
-              <Input
-                value={paymentForm.reference_number}
-                onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
-                placeholder="Optional reference"
-              />
-            </Field>
-            <Field label="Notes">
-              <Input
-                value={paymentForm.notes}
-                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
-                placeholder="Optional notes"
-              />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setShowPaymentModal(false); setSelectedSub(null); }}>
-                Cancel
-              </Button>
-              <Button onClick={handleRecordPayment}>Record Payment</Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-      {/* Renew Modal */}
-      <Modal open={showRenewModal} onClose={() => { setShowRenewModal(false); setSelectedSub(null); }} title={t("Renew Subscription")}>
-        <div className="p-6">
-          {selectedSub && (
-            <p className="mb-4 text-sm text-field-600">
-              Renewing: {selectedSub.company_name || selectedSub.supplier_name} — {selectedSub.plan_name}
-            </p>
-          )}
-          <div className="space-y-4">
-            <Field label="Renewal Notes">
-              <Input
-                value={renewalNotes}
-                onChange={(e) => setRenewalNotes(e.target.value)}
-                placeholder="Optional notes for this renewal"
-              />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setShowRenewModal(false); setSelectedSub(null); }}>
-                Cancel
-              </Button>
-              <Button onClick={handleRenew} className="bg-green-600 hover:bg-green-700">
-                Renew Subscription
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      {/* Modals */}
+      <PlanModal
+        open={showPlanModal}
+        plan={editingPlan}
+        onClose={() => { setShowPlanModal(false); setEditingPlan(null); }}
+        onSave={editingPlan ? handleUpdatePlan : handleCreatePlan}
+      />
+      <SubscriptionModal
+        open={showSubModal}
+        plans={plans}
+        companies={companies}
+        suppliers={suppliers}
+        onClose={() => setShowSubModal(false)}
+        onSave={handleCreateSub}
+      />
+      <PaymentModal
+        open={showPaymentModal}
+        subscription={selectedSub}
+        onClose={() => { setShowPaymentModal(false); setSelectedSub(null); }}
+        onSave={handleRecordPayment}
+      />
+      <RenewModal
+        open={showRenewModal}
+        subscription={selectedSub}
+        onClose={() => { setShowRenewModal(false); setSelectedSub(null); }}
+        onRenew={handleRenew}
+      />
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: Subscription Payments List
-// ---------------------------------------------------------------------------
-
-function SubscriptionPayments({ subscription }: { subscription: Subscription }) {
-  const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api<{ payments: SubscriptionPayment[] }>(`/subscriptions/${subscription.id}/payments`)
-      .then((r) => setPayments(r.payments))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [subscription.id]);
-
-  if (loading) return <Spinner className="h-4 w-4" />;
-
-  return (
-    <Card>
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-field-800">
-            {subscription.company_name || subscription.supplier_name}
-          </h3>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(subscription.status)}`}>
-            {subscription.status}
-          </span>
-        </div>
-        {payments.length === 0 ? (
-          <p className="mt-2 text-sm text-field-500">No payments recorded yet</p>
-        ) : (
-          <div className="mt-3 space-y-2">
-            {payments.map((p) => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg bg-field-50 p-3">
-                <div>
-                  <p className="text-sm font-medium text-field-800">{formatMoney(p.amount)}</p>
-                  <p className="text-xs text-field-500">{formatDate(p.payment_date)} • {p.payment_method}</p>
-                </div>
-                {p.reference_number && (
-                  <span className="text-xs text-field-400">#{p.reference_number}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
