@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { facilities, suppliers, users } from "../../db/schema.js";
 import { hashPassword } from "../../auth/password.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 
 const router = Router();
@@ -15,7 +16,8 @@ const router = Router();
 
 router.get(
   "/suppliers",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
     const rows = await db
       .select({
         supplier: suppliers,
@@ -36,8 +38,11 @@ router.get(
         // PENDING (awaiting activation) first, then newest first
         sql`CASE WHEN ${suppliers.status} = 'PENDING' THEN 0 ELSE 1 END`,
         desc(suppliers.created_at)
-      );
-    return res.json({ suppliers: rows });
+      )
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(suppliers);
+    return res.json({ suppliers: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

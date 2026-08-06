@@ -14,6 +14,7 @@ import {
   Modal,
   Money,
   PageHeader,
+  Pagination,
   SearchableSelect,
   StatusBadge,
   Table,
@@ -28,6 +29,8 @@ interface Supplier {
   phone: string | null;
   status: "PENDING" | "ACTIVE";
 }
+
+const PAGE_SIZE = 50;
 
 const emptySupplierForm = {
   name: "",
@@ -52,6 +55,8 @@ export default function DropsPage() {
   const { facilityId: fid } = useFacilityScope();
   const { t } = useI18n();
   const [drops, setDrops] = useState<DropRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [showModal, setShowModal] = useState(false);
@@ -72,10 +77,14 @@ export default function DropsPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ drops: DropRow[] }>(`/facility/${fid}/supplier-drops?weekStart=${weekStart}`).then((r) =>
-      setDrops(r.drops)
-    );
-  }, [fid, weekStart]);
+    api<{ drops: DropRow[]; total: number }>(`/facility/${fid}/supplier-drops?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setDrops(r.drops);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [fid, weekStart, page]);
 
   const loadSuppliers = useCallback(() => {
     if (!fid) return;
@@ -165,7 +174,14 @@ export default function DropsPage() {
       <Card className="mb-5">
         <div className="flex items-center gap-3">
           <Field label={t("Week starting")}>
-            <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+            <Input
+              type="date"
+              value={weekStart}
+              onChange={(e) => {
+                setWeekStart(e.target.value);
+                setPage(1);
+              }}
+            />
           </Field>
         </div>
       </Card>
@@ -187,6 +203,13 @@ export default function DropsPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

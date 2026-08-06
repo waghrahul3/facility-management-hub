@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bagSizes, tolis, workEntries } from "../../db/schema.js";
 import { requireFacilityAccess, requireRole } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 import { resolveRateForBagSize } from "../../services/payments.js";
 import { weekParams } from "./_shared.js";
@@ -25,6 +26,12 @@ router.get(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = and(
+      eq(workEntries.facility_id, param(req, "facilityId")),
+      gte(workEntries.work_date, weekStart),
+      lte(workEntries.work_date, weekEnd)
+    );
     const rows = await db
       .select({
         entry: workEntries,
@@ -34,15 +41,15 @@ router.get(
       .from(workEntries)
       .innerJoin(tolis, eq(tolis.id, workEntries.toli_id))
       .innerJoin(bagSizes, eq(bagSizes.id, workEntries.bag_size_id))
-      .where(
-        and(
-          eq(workEntries.facility_id, param(req, "facilityId")),
-          gte(workEntries.work_date, weekStart),
-          lte(workEntries.work_date, weekEnd)
-        )
-      )
-      .orderBy(desc(workEntries.work_date));
-    return res.json({ entries: rows });
+      .where(where)
+      .orderBy(desc(workEntries.work_date))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(workEntries)
+      .where(where);
+    return res.json({ entries: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
@@ -50,17 +57,23 @@ router.get(
   "/:facilityId/work-entries/toli/:toliId",
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = and(
+      eq(workEntries.toli_id, param(req, "toliId")),
+      eq(workEntries.facility_id, param(req, "facilityId"))
+    );
     const rows = await db
       .select()
       .from(workEntries)
-      .where(
-        and(
-          eq(workEntries.toli_id, param(req, "toliId")),
-          eq(workEntries.facility_id, param(req, "facilityId"))
-        )
-      )
-      .orderBy(desc(workEntries.work_date));
-    return res.json({ entries: rows });
+      .where(where)
+      .orderBy(desc(workEntries.work_date))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(workEntries)
+      .where(where);
+    return res.json({ entries: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

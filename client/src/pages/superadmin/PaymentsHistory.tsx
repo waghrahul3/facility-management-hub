@@ -7,6 +7,7 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
@@ -29,15 +30,23 @@ interface PaymentRow {
   facility: { id: string; name: string } | null;
 }
 
+const PAGE_SIZE = 50;
+
 export default function PaymentsHistoryPage() {
   const { t } = useI18n();
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(() => {
-    api<{ payments: PaymentRow[] }>("/super-admin/reports/payments").then((r) =>
-      setPayments(r.payments)
-    );
-  }, []);
+    api<{ payments: PaymentRow[]; total: number }>(`/super-admin/reports/payments?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setPayments(r.payments);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -72,6 +81,13 @@ export default function PaymentsHistoryPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
     </div>

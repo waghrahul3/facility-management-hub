@@ -10,12 +10,15 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
 import { fmtDate, weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 50;
 
 interface EntryRow {
   entry: {
@@ -36,12 +39,18 @@ export default function SupplierWorkEntriesPage() {
   const { t } = useI18n();
   const [entries, setEntries] = useState<EntryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(() => {
-    api<{ entries: EntryRow[] }>(`/supplier/work-entries?weekStart=${weekStart}`).then((r) =>
-      setEntries(r.entries)
-    );
-  }, [weekStart]);
+    api<{ entries: EntryRow[]; total: number }>(`/supplier/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setEntries(r.entries);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [weekStart, page]);
 
   useEffect(load, [load]);
 
@@ -57,7 +66,14 @@ export default function SupplierWorkEntriesPage() {
 
       <Card className="mb-5">
         <Field label={t("Week starting")}>
-          <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+          <Input
+            type="date"
+            value={weekStart}
+            onChange={(e) => {
+              setWeekStart(e.target.value);
+              setPage(1);
+            }}
+          />
         </Field>
       </Card>
 
@@ -100,6 +116,13 @@ export default function SupplierWorkEntriesPage() {
                 </tr>
               ))}
             </Table>
+            <Pagination
+              page={page}
+              totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+            />
           </Card>
         </>
       )}

@@ -12,6 +12,7 @@ import {
   Modal,
   Money,
   PageHeader,
+  Pagination,
   SearchableSelect,
   StatusBadge,
   Table,
@@ -19,6 +20,8 @@ import {
 } from "../../components/ui";
 import { fmtDate, todayInput, weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 50;
 
 interface Facility {
   id: string;
@@ -40,6 +43,8 @@ interface DropRow {
 export default function SupplierDropsPage() {
   const { t } = useI18n();
   const [drops, setDrops] = useState<DropRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [showModal, setShowModal] = useState(false);
@@ -52,8 +57,14 @@ export default function SupplierDropsPage() {
   });
 
   const load = useCallback(() => {
-    api<{ drops: DropRow[] }>(`/supplier/drops?weekStart=${weekStart}`).then((r) => setDrops(r.drops));
-  }, [weekStart]);
+    api<{ drops: DropRow[]; total: number }>(`/supplier/drops?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setDrops(r.drops);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [weekStart, page]);
 
   useEffect(load, [load]);
 
@@ -97,7 +108,14 @@ export default function SupplierDropsPage() {
 
       <Card className="mb-5">
         <Field label={t("Week starting")}>
-          <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+          <Input
+            type="date"
+            value={weekStart}
+            onChange={(e) => {
+              setWeekStart(e.target.value);
+              setPage(1);
+            }}
+          />
         </Field>
       </Card>
 
@@ -118,6 +136,13 @@ export default function SupplierDropsPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

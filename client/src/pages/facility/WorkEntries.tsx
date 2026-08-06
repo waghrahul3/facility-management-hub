@@ -14,6 +14,7 @@ import {
   Modal,
   Money,
   PageHeader,
+  Pagination,
   SearchableSelect,
   StatusBadge,
   Table,
@@ -21,6 +22,8 @@ import {
 } from "../../components/ui";
 import { fmtDate, todayInput, weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 50;
 
 interface ToliOption {
   id: string;
@@ -52,6 +55,8 @@ export default function WorkEntriesPage() {
   const { facilityId: fid } = useFacilityScope();
   const { t } = useI18n();
   const [entries, setEntries] = useState<EntryRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [tolis, setTolis] = useState<ToliOption[]>([]);
   const [bagSizes, setBagSizes] = useState<BagOption[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
@@ -70,16 +75,20 @@ export default function WorkEntriesPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ entries: EntryRow[] }>(`/facility/${fid}/work-entries?weekStart=${weekStart}`).then((r) =>
-      setEntries(r.entries)
-    );
-  }, [fid, weekStart]);
+    api<{ entries: EntryRow[]; total: number }>(`/facility/${fid}/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setEntries(r.entries);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [fid, weekStart, page]);
 
   useEffect(load, [load]);
 
   useEffect(() => {
     if (!fid) return;
-    api<{ tolis: { toli: ToliOption }[] }>(`/facility/${fid}/tolis`).then((r) =>
+    api<{ tolis: { toli: ToliOption }[] }>(`/facility/${fid}/tolis?pageSize=200`).then((r) =>
       setTolis(r.tolis.map((t) => t.toli))
     );
     api<{ bagSizes: BagOption[] }>(`/facility/${fid}/bag-sizes`).then((r) => setBagSizes(r.bagSizes));
@@ -132,7 +141,14 @@ export default function WorkEntriesPage() {
 
       <Card className="mb-5">
         <Field label={t("Week starting")}>
-          <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+          <Input
+            type="date"
+            value={weekStart}
+            onChange={(e) => {
+              setWeekStart(e.target.value);
+              setPage(1);
+            }}
+          />
         </Field>
       </Card>
 
@@ -187,6 +203,13 @@ export default function WorkEntriesPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
           <div className="mt-3 rounded-lg bg-field-50 px-3 py-2 text-xs text-field-500">
             {t("Status can only be changed by the facility admin. Approved entries count toward weekly summaries; paid entries are locked after settlement.")}
           </div>

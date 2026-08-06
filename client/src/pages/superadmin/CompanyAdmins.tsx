@@ -12,6 +12,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   SearchableSelect,
   Table,
   Td,
@@ -31,26 +32,34 @@ interface Company {
   is_active: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 export default function CompanyAdminsPage() {
   const { t } = useI18n();
   const [admins, setAdmins] = useState<CompanyAdmin[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", companyId: "" });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api<{ companyAdmins: CompanyAdmin[] }>("/super-admin/company-admins").then((r) =>
-      setAdmins(r.companyAdmins)
-    );
-    api<{ companies: { company: Company }[] }>("/super-admin/companies").then((r) => {
+    api<{ companyAdmins: CompanyAdmin[]; total: number }>(`/super-admin/company-admins?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setAdmins(r.companyAdmins);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+    api<{ companies: { company: Company }[] }>("/super-admin/companies?pageSize=200").then((r) => {
       const active = r.companies
         .map((c) => c.company)
         .filter((c) => c.is_active !== false);
       setCompanies(active);
       setForm((f) => ({ ...f, companyId: f.companyId || active[0]?.id || "" }));
     });
-  }, []);
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -104,6 +113,13 @@ export default function CompanyAdminsPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

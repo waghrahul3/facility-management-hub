@@ -12,12 +12,15 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
 import { weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 50;
 
 interface SummaryRow {
   summary: {
@@ -37,14 +40,22 @@ export default function ApprovalsPage() {
   const { t } = useI18n();
   const [summaries, setSummaries] = useState<SummaryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ summaries: SummaryRow[] }>(`/facility/${fid}/weekly-summary?weekStart=${weekStart}`).then(
-      (r) => setSummaries(r.summaries)
+    api<{ summaries: SummaryRow[]; total: number }>(`/facility/${fid}/weekly-summary?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then(
+      (r) => {
+        setSummaries(r.summaries);
+        setTotal(r.total);
+        if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+          setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+        }
+      }
     );
-  }, [fid, weekStart]);
+  }, [fid, weekStart, page]);
 
   useEffect(load, [load]);
 
@@ -85,7 +96,14 @@ export default function ApprovalsPage() {
 
       <Card className="mb-5">
         <Field label={t("Week starting")}>
-          <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} />
+          <Input
+            type="date"
+            value={weekStart}
+            onChange={(e) => {
+              setWeekStart(e.target.value);
+              setPage(1);
+            }}
+          />
         </Field>
       </Card>
 
@@ -128,6 +146,13 @@ export default function ApprovalsPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
           <div className="mt-3 rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
             {t("Only approved summaries count toward Sunday supplier payments.")}
           </div>

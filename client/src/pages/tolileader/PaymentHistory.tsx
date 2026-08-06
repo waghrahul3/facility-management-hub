@@ -7,12 +7,15 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 25;
 
 interface Distribution {
   id: string;
@@ -25,12 +28,20 @@ interface Distribution {
 export default function LeaderPaymentHistoryPage() {
   const { t } = useI18n();
   const [distributions, setDistributions] = useState<Distribution[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    api<{ distributions: Distribution[] }>("/toli-leader/payment-history").then((r) =>
-      setDistributions(r.distributions)
-    );
-  }, []);
+    api<{ distributions: Distribution[]; total: number }>(
+      `/toli-leader/payment-history?page=${page}&pageSize=${PAGE_SIZE}`
+    ).then((r) => {
+      setDistributions(r.distributions);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [page]);
 
   if (!distributions) return <LoadingScreen label={t("Loading payment history…")} />;
 
@@ -58,6 +69,13 @@ export default function LeaderPaymentHistoryPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
     </div>

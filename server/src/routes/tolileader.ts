@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   bagSizes,
@@ -13,6 +13,7 @@ import {
 import { requireAuth, requireRole } from "../auth/middleware.js";
 import { asyncHandler, notFound } from "../lib/errors.js";
 import { logger, reqLogger } from "../lib/logger.js";
+import { pageMeta, parsePage } from "../lib/pagination.js";
 import { param } from "../lib/params.js";
 import { currentWeek } from "../services/payments.js";
 import { startOfWeek, endOfWeek, dateOnly } from "../lib/date.js";
@@ -118,12 +119,23 @@ router.get(
 router.get(
   "/payment-history",
   asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = eq(supplierPaymentDistributions.toli_id, myToliId(req));
     const distributions = await db
       .select()
       .from(supplierPaymentDistributions)
-      .where(eq(supplierPaymentDistributions.toli_id, myToliId(req)))
-      .orderBy(desc(supplierPaymentDistributions.distribution_date));
-    return res.json({ distributions });
+      .where(where)
+      .orderBy(desc(supplierPaymentDistributions.distribution_date))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(supplierPaymentDistributions)
+      .where(where);
+    return res.json({
+      distributions,
+      ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }),
+    });
   })
 );
 

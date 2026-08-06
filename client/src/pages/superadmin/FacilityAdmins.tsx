@@ -12,6 +12,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   SearchableSelect,
   Table,
   Td,
@@ -32,24 +33,32 @@ interface Facility {
   is_active: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 export default function FacilityAdminsPage() {
   const { t } = useI18n();
   const [admins, setAdmins] = useState<FacilityAdmin[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", facilityId: "" });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api<{ facilityAdmins: FacilityAdmin[] }>("/super-admin/facility-admins").then((r) =>
-      setAdmins(r.facilityAdmins)
-    );
-    api<{ facilities: Facility[] }>("/super-admin/facilities").then((r) => {
+    api<{ facilityAdmins: FacilityAdmin[]; total: number }>(`/super-admin/facility-admins?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setAdmins(r.facilityAdmins);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+    api<{ facilities: Facility[] }>("/super-admin/facilities?pageSize=200").then((r) => {
       const active = r.facilities.filter((f) => f.is_active !== false);
       setFacilities(active);
       setForm((f) => ({ ...f, facilityId: f.facilityId || active[0]?.id || "" }));
     });
-  }, []);
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -103,6 +112,13 @@ export default function FacilityAdminsPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

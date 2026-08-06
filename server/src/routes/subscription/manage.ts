@@ -11,6 +11,7 @@ import {
 import { requireAuth, requireRole } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { reqLogger } from "../../lib/logger.js";
 
 const router = Router();
@@ -23,7 +24,8 @@ router.get(
   "/",
   requireAuth,
   requireRole("SUPER_ADMIN"),
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
     const subs = await db
       .select({
         id: subscriptions.id,
@@ -46,9 +48,15 @@ router.get(
       .innerJoin(subscriptionPlans, eq(subscriptions.plan_id, subscriptionPlans.id))
       .leftJoin(companies, eq(subscriptions.company_id, companies.id))
       .leftJoin(suppliers, eq(subscriptions.supplier_id, suppliers.id))
-      .orderBy(desc(subscriptions.created_at));
+      .orderBy(desc(subscriptions.created_at))
+      .limit(limit)
+      .offset(offset);
 
-    return res.json({ subscriptions: subs });
+    const [totalRow] = await db.select({ value: count() }).from(subscriptions);
+    return res.json({
+      subscriptions: subs,
+      ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }),
+    });
   })
 );
 

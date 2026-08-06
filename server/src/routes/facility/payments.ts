@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { suppliers, supplierPayments } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 import { computeSupplierWeekPayment, processSupplierPayments } from "../../services/payments.js";
 import { weekParams } from "./_shared.js";
@@ -20,6 +21,11 @@ router.get(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = and(
+      eq(supplierPayments.facility_id, param(req, "facilityId")),
+      eq(supplierPayments.week_start_date, weekStart)
+    );
     const rows = await db
       .select({
         payment: {
@@ -37,14 +43,15 @@ router.get(
       })
       .from(supplierPayments)
       .innerJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
-      .where(
-        and(
-          eq(supplierPayments.facility_id, param(req, "facilityId")),
-          eq(supplierPayments.week_start_date, weekStart)
-        )
-      )
-      .orderBy(desc(supplierPayments.net_payment));
-    return res.json({ payments: rows });
+      .where(where)
+      .orderBy(desc(supplierPayments.net_payment))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(supplierPayments)
+      .where(where);
+    return res.json({ payments: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
@@ -102,6 +109,8 @@ router.get(
   "/:facilityId/payments/history",
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = eq(supplierPayments.facility_id, param(req, "facilityId"));
     const rows = await db
       .select({
         payment: supplierPayments,
@@ -109,10 +118,15 @@ router.get(
       })
       .from(supplierPayments)
       .innerJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
-      .where(eq(supplierPayments.facility_id, param(req, "facilityId")))
+      .where(where)
       .orderBy(desc(supplierPayments.week_start_date))
-      .limit(100);
-    return res.json({ payments: rows });
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(supplierPayments)
+      .where(where);
+    return res.json({ payments: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

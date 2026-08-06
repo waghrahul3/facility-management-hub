@@ -4,6 +4,7 @@ import { db } from "../../db/index.js";
 import { auditLogs, companies, facilities, suppliers, supplierPayments, users } from "../../db/schema.js";
 import type { AuditAction } from "../../lib/audit.js";
 import { asyncHandler } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 
 const router = Router();
 
@@ -15,8 +16,7 @@ router.get(
   "/audit-logs",
   asyncHandler(async (req, res) => {
     const q = req.query as Record<string, unknown>;
-    const limit = Math.min(Number(q.limit ?? 100), 500);
-    const offset = Number(q.offset ?? 0);
+    const { limit, offset, page, pageSize } = parsePage(q);
 
     const conditions = [];
     if (q.action) conditions.push(eq(auditLogs.action, String(q.action) as AuditAction));
@@ -40,7 +40,7 @@ router.get(
       .from(auditLogs)
       .where(where);
 
-    return res.json({ logs: rows, total: total?.value ?? 0, limit, offset });
+    return res.json({ logs: rows, ...pageMeta(total?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
@@ -79,7 +79,8 @@ router.get(
 
 router.get(
   "/reports/payments",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
     const rows = await db
       .select({
         payment: supplierPayments,
@@ -90,19 +91,25 @@ router.get(
       .leftJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
       .leftJoin(facilities, eq(facilities.id, supplierPayments.facility_id))
       .orderBy(desc(supplierPayments.created_at))
-      .limit(100);
-    return res.json({ payments: rows });
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(supplierPayments);
+    return res.json({ payments: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
 router.get(
   "/reports/suppliers",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
     const rows = await db
       .select()
       .from(suppliers)
-      .orderBy(desc(suppliers.created_at));
-    return res.json({ suppliers: rows });
+      .orderBy(desc(suppliers.created_at))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(suppliers);
+    return res.json({ suppliers: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

@@ -501,6 +501,83 @@ export function Td({ children, className = "" }: { children?: ReactNode; classNa
 }
 
 /* ------------------------------------------------------------------ */
+/* Pagination                                                          */
+/* ------------------------------------------------------------------ */
+
+export function Pagination({
+  page,
+  totalPages,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  total?: number;
+  pageSize?: number;
+  onChange: (page: number) => void;
+}) {
+  const { t } = useI18n();
+  if (totalPages <= 1) return null;
+
+  const from = total !== undefined && pageSize ? (page - 1) * pageSize + 1 : null;
+  const to = total !== undefined && pageSize ? Math.min(page * pageSize, total) : null;
+
+  const pages: number[] = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  const btn =
+    "inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2.5 text-sm font-medium transition-colors duration-150";
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-field-100 px-4 py-3">
+      {from !== null && to !== null && total !== undefined ? (
+        <p className="text-xs text-field-400">
+          {t("Showing {from}–{to} of {total}", { from, to, total })}
+        </p>
+      ) : (
+        <span />
+      )}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+          aria-label={t("Previous")}
+          className={`${btn} text-field-600 hover:bg-field-100 disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          {t("Previous")}
+        </button>
+        {pages.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`${btn} ${
+              p === page ? "bg-onion-600 font-semibold text-white" : "text-field-600 hover:bg-field-100"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+          aria-label={t("Next")}
+          className={`${btn} text-field-600 hover:bg-field-100 disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          {t("Next")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Misc                                                                */
 /* ------------------------------------------------------------------ */
 

@@ -12,6 +12,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   SearchableSelect,
   Table,
   Td,
@@ -36,11 +37,15 @@ interface CompanyOption {
   is_active: boolean;
 }
 
+const PAGE_SIZE = 50;
+
 const emptyForm = { name: "", location: "", city: "", capacity: 0, companyId: "" };
 
 export default function FacilitiesPage() {
   const { t } = useI18n();
   const [facilities, setFacilities] = useState<Facility[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Facility | null>(null);
@@ -48,11 +53,17 @@ export default function FacilitiesPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api<{ facilities: Facility[] }>("/super-admin/facilities").then((r) => setFacilities(r.facilities));
-    api<{ companies: { company: CompanyOption }[] }>("/super-admin/companies").then((r) =>
+    api<{ facilities: Facility[]; total: number }>(`/super-admin/facilities?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setFacilities(r.facilities);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+    api<{ companies: { company: CompanyOption }[] }>("/super-admin/companies?pageSize=200").then((r) =>
       setCompanies(r.companies.map((c) => c.company).filter((c) => c.is_active !== false))
     );
-  }, []);
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -157,6 +168,13 @@ export default function FacilitiesPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

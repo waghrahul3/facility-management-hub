@@ -13,6 +13,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   Table,
   Td,
 } from "../../components/ui";
@@ -32,6 +33,8 @@ interface BuyerRow {
   company: { id: string; name: string } | null;
 }
 
+const PAGE_SIZE = 50;
+
 const emptyForm = { name: "", phone: "", address: "", city: "" };
 
 export default function BuyersPage() {
@@ -39,6 +42,8 @@ export default function BuyersPage() {
   const { t } = useI18n();
   const isSuper = user?.role === "SUPER_ADMIN";
   const [rows, setRows] = useState<BuyerRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<BuyerRow["buyer"] | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -46,8 +51,14 @@ export default function BuyersPage() {
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(() => {
-    api<{ buyers: BuyerRow[] }>("/sales/buyers").then((r) => setRows(r.buyers));
-  }, []);
+    api<{ buyers: BuyerRow[]; total: number }>(`/sales/buyers?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setRows(r.buyers);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -180,6 +191,13 @@ export default function BuyersPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

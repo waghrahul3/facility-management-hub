@@ -12,6 +12,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
@@ -33,6 +34,8 @@ interface SupplierRow {
   user: { id: string; name: string; email: string } | null;
 }
 
+const PAGE_SIZE = 50;
+
 const emptyForm = {
   name: "",
   email: "",
@@ -49,6 +52,8 @@ const emptyLoginForm = { email: "", password: "" };
 export default function SuppliersPage() {
   const { t } = useI18n();
   const [suppliers, setSuppliers] = useState<SupplierRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
@@ -60,10 +65,14 @@ export default function SuppliersPage() {
   const [loginBusy, setLoginBusy] = useState(false);
 
   const load = useCallback(() => {
-    api<{ suppliers: SupplierRow[] }>("/super-admin/suppliers").then((r) =>
-      setSuppliers(r.suppliers)
-    );
-  }, []);
+    api<{ suppliers: SupplierRow[]; total: number }>(`/super-admin/suppliers?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setSuppliers(r.suppliers);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -224,6 +233,13 @@ export default function SuppliersPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

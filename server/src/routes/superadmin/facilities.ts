@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { companies, facilities, users } from "../../db/schema.js";
 import { hashPassword } from "../../auth/password.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 
 const router = Router();
@@ -15,7 +16,8 @@ const router = Router();
 
 router.get(
   "/facilities",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
     const rows = await db
       .select({
         id: facilities.id,
@@ -36,8 +38,11 @@ router.get(
       .from(facilities)
       .leftJoin(companies, eq(companies.id, facilities.company_id))
       .leftJoin(users, eq(users.facility_id, facilities.id))
-      .orderBy(desc(facilities.created_at));
-    return res.json({ facilities: rows });
+      .orderBy(desc(facilities.created_at))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(facilities);
+    return res.json({ facilities: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
@@ -145,13 +150,18 @@ router.delete(
 
 router.get(
   "/facility-admins",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = eq(users.role, "FACILITY_ADMIN");
     const rows = await db
       .select()
       .from(users)
-      .where(eq(users.role, "FACILITY_ADMIN"))
-      .orderBy(desc(users.created_at));
-    return res.json({ facilityAdmins: rows });
+      .where(where)
+      .orderBy(desc(users.created_at))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(users).where(where);
+    return res.json({ facilityAdmins: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

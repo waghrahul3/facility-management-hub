@@ -12,6 +12,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   Table,
   Td,
 } from "../../components/ui";
@@ -30,6 +31,8 @@ interface Company {
   adminEmail: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 const emptyForm = {
   name: "",
   contact_person: "",
@@ -46,6 +49,8 @@ const emptyForm = {
 export default function CompaniesPage() {
   const { t } = useI18n();
   const [companies, setCompanies] = useState<Company[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -53,9 +58,10 @@ export default function CompaniesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
-    api<{ companies: { company: Omit<Company, "facilityCount" | "adminName" | "adminEmail">; facilityCount: number; adminName: string | null; adminEmail: string | null }[] }>(
-      "/super-admin/companies"
-    ).then((r) =>
+    api<{
+      companies: { company: Omit<Company, "facilityCount" | "adminName" | "adminEmail">; facilityCount: number; adminName: string | null; adminEmail: string | null }[];
+      total: number;
+    }>(`/super-admin/companies?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
       setCompanies(
         r.companies.map((row) => ({
           ...row.company,
@@ -63,9 +69,13 @@ export default function CompaniesPage() {
           adminName: row.adminName,
           adminEmail: row.adminEmail,
         }))
-      )
-    );
-  }, []);
+      );
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [page]);
 
   useEffect(load, [load]);
 
@@ -195,6 +205,13 @@ export default function CompaniesPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

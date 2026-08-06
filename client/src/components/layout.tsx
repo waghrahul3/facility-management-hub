@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useAuth } from "../lib/auth";
 import type { AuthUser } from "../lib/api";
 import { useI18n } from "../i18n";
-import { LanguagePicker } from "../pages/LoginPage";
+import { LanguagePicker } from "./LanguagePicker";
 
 interface NavItem {
   to: string;

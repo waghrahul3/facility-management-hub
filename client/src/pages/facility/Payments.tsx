@@ -12,12 +12,15 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
 import { weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+
+const PAGE_SIZE = 50;
 
 interface PendingPayment {
   payment: {
@@ -52,6 +55,8 @@ export default function PaymentsPage() {
   const { t } = useI18n();
   const [pending, setPending] = useState<PendingPayment[] | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,10 +66,14 @@ export default function PaymentsPage() {
     api<{ payments: PendingPayment[] }>(`/facility/${fid}/payments/pending?weekStart=${weekStart}`)
       .then((r) => setPending(r.payments))
       .catch(() => setPending([]));
-    api<{ payments: HistoryRow[] }>(`/facility/${fid}/payments/history`).then((r) =>
-      setHistory(r.payments)
-    );
-  }, [fid, weekStart]);
+    api<{ payments: HistoryRow[]; total: number }>(`/facility/${fid}/payments/history?page=${historyPage}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setHistory(r.payments);
+      setHistoryTotal(r.total);
+      if (historyPage > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setHistoryPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
+  }, [fid, weekStart, historyPage]);
 
   useEffect(load, [load]);
 
@@ -160,6 +169,13 @@ export default function PaymentsPage() {
               ))}
             </Table>
           )}
+          <Pagination
+            page={historyPage}
+            totalPages={Math.max(1, Math.ceil(historyTotal / PAGE_SIZE))}
+            total={historyTotal}
+            pageSize={PAGE_SIZE}
+            onChange={setHistoryPage}
+          />
         </Card>
       </div>
     </div>

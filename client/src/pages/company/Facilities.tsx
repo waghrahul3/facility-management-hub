@@ -15,6 +15,7 @@ import {
   LoadingScreen,
   Modal,
   PageHeader,
+  Pagination,
   SearchableSelect,
   Table,
   Td,
@@ -41,6 +42,8 @@ interface FacilityAdminRow {
   created_at: string;
 }
 
+const ADMINS_PAGE_SIZE = 25;
+
 const emptyFacilityForm = {
   name: "",
   location: "",
@@ -56,6 +59,8 @@ export default function CompanyFacilitiesPage() {
   const cid = user?.companyId;
   const [rows, setRows] = useState<FacilityRow[] | null>(null);
   const [admins, setAdmins] = useState<FacilityAdminRow[]>([]);
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminTotal, setAdminTotal] = useState(0);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   // Add / edit facility
@@ -74,10 +79,16 @@ export default function CompanyFacilitiesPage() {
   const load = useCallback(() => {
     if (!cid) return;
     api<{ facilities: FacilityRow[] }>(`/company/${cid}/facilities`).then((r) => setRows(r.facilities));
-    api<{ facilityAdmins: FacilityAdminRow[] }>(`/company/${cid}/facility-admins`).then((r) =>
-      setAdmins(r.facilityAdmins)
-    );
-  }, [cid]);
+    api<{ facilityAdmins: FacilityAdminRow[]; total: number }>(
+      `/company/${cid}/facility-admins?page=${adminPage}&pageSize=${ADMINS_PAGE_SIZE}`
+    ).then((r) => {
+      setAdmins(r.facilityAdmins);
+      setAdminTotal(r.total);
+      if (adminPage > Math.max(1, Math.ceil(r.total / ADMINS_PAGE_SIZE))) {
+        setAdminPage(Math.max(1, Math.ceil(r.total / ADMINS_PAGE_SIZE)));
+      }
+    });
+  }, [cid, adminPage]);
 
   useEffect(load, [load]);
 
@@ -265,21 +276,30 @@ export default function CompanyFacilitiesPage() {
 
       {/* Facility admins */}
       <div className="mt-6">
-        <Card title={t("Facility admins")} subtitle={t("{n} admins across your facilities", { n: admins.length })}>
+        <Card title={t("Facility admins")} subtitle={t("{n} admins across your facilities", { n: adminTotal })}>
           {admins.length === 0 ? (
             <EmptyState title={t("No facility admins yet")} hint={t("Add admins from a facility row or the header button")} />
           ) : (
-            <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Created")]} empty={null}>
-              {admins.map((a) => (
-                <tr key={a.id} className="hover:bg-field-50/50">
-                  <Td className="font-semibold text-field-900">{a.name}</Td>
-                  <Td>{a.email}</Td>
-                  <Td>{a.phone ?? "—"}</Td>
-                  <Td>{rows.find((r) => r.facility.id === a.facility_id)?.facility.name ?? "—"}</Td>
-                  <Td className="text-xs text-field-400">{fmtDate(a.created_at)}</Td>
-                </tr>
-              ))}
-            </Table>
+            <>
+              <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Created")]} empty={null}>
+                {admins.map((a) => (
+                  <tr key={a.id} className="hover:bg-field-50/50">
+                    <Td className="font-semibold text-field-900">{a.name}</Td>
+                    <Td>{a.email}</Td>
+                    <Td>{a.phone ?? "—"}</Td>
+                    <Td>{rows.find((r) => r.facility.id === a.facility_id)?.facility.name ?? "—"}</Td>
+                    <Td className="text-xs text-field-400">{fmtDate(a.created_at)}</Td>
+                  </tr>
+                ))}
+              </Table>
+              <Pagination
+                page={adminPage}
+                totalPages={Math.max(1, Math.ceil(adminTotal / ADMINS_PAGE_SIZE))}
+                total={adminTotal}
+                pageSize={ADMINS_PAGE_SIZE}
+                onChange={setAdminPage}
+              />
+            </>
           )}
         </Card>
       </div>

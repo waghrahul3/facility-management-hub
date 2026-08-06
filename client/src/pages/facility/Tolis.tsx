@@ -13,6 +13,7 @@ import {
   Modal,
   Money,
   PageHeader,
+  Pagination,
   SearchableSelect,
   StatusBadge,
   Table,
@@ -25,6 +26,8 @@ interface DropOption {
   drop_date: string;
   supplier: { name: string } | null;
 }
+
+const PAGE_SIZE = 50;
 
 interface ToliRow {
   toli: {
@@ -43,6 +46,8 @@ export default function TolisPage() {
   const { facilityId: fid } = useFacilityScope();
   const { t } = useI18n();
   const [tolis, setTolis] = useState<ToliRow[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [drops, setDrops] = useState<DropOption[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -56,15 +61,21 @@ export default function TolisPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ tolis: ToliRow[] }>(`/facility/${fid}/tolis`).then((r) => setTolis(r.tolis));
+    api<{ tolis: ToliRow[]; total: number }>(`/facility/${fid}/tolis?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+      setTolis(r.tolis);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
+    });
     api<{ drops: { drop: DropOption; supplier: { name: string } | null }[] }>(
-      `/facility/${fid}/supplier-drops`
+      `/facility/${fid}/supplier-drops?pageSize=200`
     ).then((r) =>
       setDrops(
         r.drops.map((d) => ({ id: d.drop.id, drop_date: d.drop.drop_date, supplier: d.supplier }))
       )
     );
-  }, [fid]);
+  }, [fid, page]);
 
   useEffect(load, [load]);
 
@@ -115,6 +126,13 @@ export default function TolisPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

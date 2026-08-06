@@ -1,57 +1,77 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./lib/auth";
 import { AppShell } from "./components/layout";
 import { FacilityScopeProvider } from "./lib/facilityScope";
 import FacilityTabs from "./components/FacilityTabs";
-import LoginPage from "./pages/LoginPage";
 import type { AuthUser } from "./lib/api";
+import { useI18n } from "./i18n";
+
+// ---------------------------------------------------------------------------
+// Lazy-loaded routes — each page ships as its own chunk and loads on demand.
+// ---------------------------------------------------------------------------
 
 // Super Admin pages
-import SuperAdminDashboard from "./pages/superadmin/Dashboard";
-import CompaniesPage from "./pages/superadmin/Companies";
-import CompanyAdminsPage from "./pages/superadmin/CompanyAdmins";
-import FacilitiesPage from "./pages/superadmin/Facilities";
-import FacilityAdminsPage from "./pages/superadmin/FacilityAdmins";
-import BagSizesPage from "./pages/superadmin/BagSizes";
-import RatesPage from "./pages/superadmin/Rates";
-import PaymentsHistoryPage from "./pages/superadmin/PaymentsHistory";
-import SuppliersPage from "./pages/superadmin/Suppliers";
-import AuditLogPage from "./pages/superadmin/AuditLog";
-import GitHubPage from "./pages/superadmin/GitHub";
-import SubscriptionsPage from "./pages/superadmin/Subscriptions";
-import ReportsPage from "./pages/Reports";
-import LoadingGuidePage from "./pages/LoadingGuide";
+const SuperAdminDashboard = lazy(() => import("./pages/superadmin/Dashboard"));
+const CompaniesPage = lazy(() => import("./pages/superadmin/Companies"));
+const CompanyAdminsPage = lazy(() => import("./pages/superadmin/CompanyAdmins"));
+const FacilitiesPage = lazy(() => import("./pages/superadmin/Facilities"));
+const FacilityAdminsPage = lazy(() => import("./pages/superadmin/FacilityAdmins"));
+const BagSizesPage = lazy(() => import("./pages/superadmin/BagSizes"));
+const RatesPage = lazy(() => import("./pages/superadmin/Rates"));
+const PaymentsHistoryPage = lazy(() => import("./pages/superadmin/PaymentsHistory"));
+const SuppliersPage = lazy(() => import("./pages/superadmin/Suppliers"));
+const AuditLogPage = lazy(() => import("./pages/superadmin/AuditLog"));
+const GitHubPage = lazy(() => import("./pages/superadmin/GitHub"));
+const SubscriptionsPage = lazy(() => import("./pages/superadmin/Subscriptions"));
+const ReportsPage = lazy(() => import("./pages/Reports"));
+const LoadingGuidePage = lazy(() => import("./pages/LoadingGuide"));
 
 // Company Admin pages
-import CompanyDashboard from "./pages/company/Dashboard";
-import CompanyFacilitiesPage from "./pages/company/Facilities";
-import BuyersPage from "./pages/company/Buyers";
-import OrdersPage from "./pages/company/Orders";
+const CompanyDashboard = lazy(() => import("./pages/company/Dashboard"));
+const CompanyFacilitiesPage = lazy(() => import("./pages/company/Facilities"));
+const BuyersPage = lazy(() => import("./pages/company/Buyers"));
+const OrdersPage = lazy(() => import("./pages/company/Orders"));
 
 // Facility Admin pages
-import FacilityDashboard from "./pages/facility/Dashboard";
-import DropsPage from "./pages/facility/Drops";
-import TolisPage from "./pages/facility/Tolis";
-import WorkEntriesPage from "./pages/facility/WorkEntries";
-import FacilityRatesPage from "./pages/facility/Rates";
-import ApprovalsPage from "./pages/facility/Approvals";
-import PaymentsPage from "./pages/facility/Payments";
-import FacilitySalesPage from "./pages/facility/Sales";
+const FacilityDashboard = lazy(() => import("./pages/facility/Dashboard"));
+const DropsPage = lazy(() => import("./pages/facility/Drops"));
+const TolisPage = lazy(() => import("./pages/facility/Tolis"));
+const WorkEntriesPage = lazy(() => import("./pages/facility/WorkEntries"));
+const FacilityRatesPage = lazy(() => import("./pages/facility/Rates"));
+const ApprovalsPage = lazy(() => import("./pages/facility/Approvals"));
+const PaymentsPage = lazy(() => import("./pages/facility/Payments"));
+const FacilitySalesPage = lazy(() => import("./pages/facility/Sales"));
 
 // Supplier pages
-import SupplierDashboard from "./pages/supplier/Dashboard";
-import SupplierDropsPage from "./pages/supplier/Drops";
-import SupplierWorkEntriesPage from "./pages/supplier/WorkEntries";
-import SupplierPaymentsPage from "./pages/supplier/Payments";
-import SupplierPaymentHistoryPage from "./pages/supplier/PaymentHistory";
+const SupplierDashboard = lazy(() => import("./pages/supplier/Dashboard"));
+const SupplierDropsPage = lazy(() => import("./pages/supplier/Drops"));
+const SupplierWorkEntriesPage = lazy(() => import("./pages/supplier/WorkEntries"));
+const SupplierPaymentsPage = lazy(() => import("./pages/supplier/Payments"));
+const SupplierPaymentHistoryPage = lazy(() => import("./pages/supplier/PaymentHistory"));
 
 // Toli Leader pages
-import ToliLeaderDashboard from "./pages/tolileader/Dashboard";
-import MyToliPage from "./pages/tolileader/MyToli";
-import TodayWorkPage from "./pages/tolileader/TodayWork";
-import EarningsPage from "./pages/tolileader/Earnings";
-import LeaderPaymentHistoryPage from "./pages/tolileader/PaymentHistory";
+const ToliLeaderDashboard = lazy(() => import("./pages/tolileader/Dashboard"));
+const MyToliPage = lazy(() => import("./pages/tolileader/MyToli"));
+const TodayWorkPage = lazy(() => import("./pages/tolileader/TodayWork"));
+const EarningsPage = lazy(() => import("./pages/tolileader/Earnings"));
+const LeaderPaymentHistoryPage = lazy(() => import("./pages/tolileader/PaymentHistory"));
+
+// Auth
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+
+function RouteFallback() {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-center justify-center py-24 text-field-400">
+      <div className="flex items-center gap-3">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-field-200 border-t-onion-600" />
+        <span className="text-sm font-medium">{t("Loading…")}</span>
+      </div>
+    </div>
+  );
+}
 
 function RequireRole({ user, roles, children }: { user: AuthUser; roles: AuthUser["role"][]; children: ReactNode }) {
   if (!roles.includes(user.role)) {
@@ -163,9 +183,11 @@ function homeFor(role: AuthUser["role"]): string {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/*" element={<Protected />} />
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/*" element={<Protected />} />
+      </Routes>
+    </Suspense>
   );
 }

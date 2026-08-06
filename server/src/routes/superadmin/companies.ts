@@ -5,6 +5,7 @@ import { companies, facilities, users } from "../../db/schema.js";
 import { hashPassword } from "../../auth/password.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { reqLogger } from "../../lib/logger.js";
 import { param } from "../../lib/params.js";
 
@@ -16,8 +17,14 @@ const router = Router();
 
 router.get(
   "/companies",
-  asyncHandler(async (_req, res) => {
-    const companyRows = await db.select().from(companies).orderBy(desc(companies.created_at));
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const companyRows = await db
+      .select()
+      .from(companies)
+      .orderBy(desc(companies.created_at))
+      .limit(limit)
+      .offset(offset);
 
     const [adminRows, facilityCountRows] = await Promise.all([
       db
@@ -54,7 +61,11 @@ router.get(
       adminEmail: adminByCompany.get(company.id)?.email ?? null,
     }));
 
-    return res.json({ companies: companiesList });
+    const [totalRow] = await db.select({ value: count() }).from(companies);
+    return res.json({
+      companies: companiesList,
+      ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }),
+    });
   })
 );
 
@@ -200,13 +211,18 @@ router.delete(
 
 router.get(
   "/company-admins",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = eq(users.role, "COMPANY_ADMIN");
     const rows = await db
       .select()
       .from(users)
-      .where(eq(users.role, "COMPANY_ADMIN"))
-      .orderBy(desc(users.created_at));
-    return res.json({ companyAdmins: rows });
+      .where(where)
+      .orderBy(desc(users.created_at))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db.select({ value: count() }).from(users).where(where);
+    return res.json({ companyAdmins: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

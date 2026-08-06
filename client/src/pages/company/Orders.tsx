@@ -9,6 +9,7 @@ import {
   LoadingScreen,
   Money,
   PageHeader,
+  Pagination,
   StatCard,
   Table,
   Td,
@@ -29,12 +30,16 @@ import type {
   SalesSummary,
 } from "./orders/types";
 
+const PAGE_SIZE = 50;
+
 export default function OrdersPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const isSuper = user?.role === "SUPER_ADMIN";
   const [orders, setOrders] = useState<OrderRow[] | null>(null);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
 
   // Lookups
   const [buyers, setBuyers] = useState<BuyerOpt[]>([]);
@@ -50,18 +55,22 @@ export default function OrdersPage() {
   const loadAll = useCallback(async () => {
     try {
       const [o, s] = await Promise.all([
-        api<{ orders: OrderRow[] }>("/sales/orders"),
+        api<{ orders: OrderRow[]; total: number }>(`/sales/orders?page=${orderPage}&pageSize=${PAGE_SIZE}`),
         api<SalesSummary>("/sales/summary"),
       ]);
       setOrders(o.orders);
+      setOrderTotal(o.total);
+      if (orderPage > Math.max(1, Math.ceil(o.total / PAGE_SIZE))) {
+        setOrderPage(Math.max(1, Math.ceil(o.total / PAGE_SIZE)));
+      }
       setSummary(s);
     } catch {
       /* handled by caller */
     }
-  }, []);
+  }, [orderPage]);
 
   const loadLookups = useCallback(() => {
-    api<{ buyers: { buyer: BuyerOpt }[] }>("/sales/buyers").then((r) =>
+    api<{ buyers: { buyer: BuyerOpt }[] }>("/sales/buyers?pageSize=200").then((r) =>
       setBuyers(r.buyers.map((b) => b.buyer))
     );
     // Company admins list their facilities via /company/:companyId/facilities
@@ -220,6 +229,13 @@ export default function OrdersPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={orderPage}
+            totalPages={Math.max(1, Math.ceil(orderTotal / PAGE_SIZE))}
+            total={orderTotal}
+            pageSize={PAGE_SIZE}
+            onChange={setOrderPage}
+          />
         </Card>
       )}
 

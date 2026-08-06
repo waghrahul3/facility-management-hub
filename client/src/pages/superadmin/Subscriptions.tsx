@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useI18n } from "../../i18n";
-import { Button, Card, EmptyState, Modal, Spinner, StatCard } from "../../components/ui";
+import { Button, Card, EmptyState, Modal, Pagination, Spinner, StatCard } from "../../components/ui";
 import ExportButtons from "../../components/ExportButtons";
 import PlanModal from "./subscriptions/PlanModal";
 import SubscriptionModal from "./subscriptions/SubscriptionModal";
@@ -11,9 +11,13 @@ import SubscriptionPayments from "./subscriptions/SubscriptionPayments";
 import { cycleLabel, formatDate, formatMoney, statusColor } from "./subscriptions/helpers";
 import type { EntityOption, Subscription, SubscriptionPlan, SubscriptionStats } from "./subscriptions/types";
 
+const PAGE_SIZE = 50;
+
 export default function SubscriptionsPage() {
   const { t } = useI18n();
   const [tab, setTab] = useState<"plans" | "subscriptions" | "payments">("plans");
+  const [page, setPage] = useState(1);
+  const [subTotal, setSubTotal] = useState(0);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
@@ -38,13 +42,17 @@ export default function SubscriptionsPage() {
     try {
       const [plansRes, subsRes, statsRes, companiesRes, suppliersRes] = await Promise.all([
         api<{ plans: SubscriptionPlan[] }>("/subscriptions/plans"),
-        api<{ subscriptions: Subscription[] }>("/subscriptions"),
+        api<{ subscriptions: Subscription[]; total: number }>(`/subscriptions?page=${page}&pageSize=${PAGE_SIZE}`),
         api<SubscriptionStats>("/subscriptions/stats"),
-        api<{ companies: any[] }>("/super-admin/companies"),
-        api<{ suppliers: any[] }>("/super-admin/suppliers"),
+        api<{ companies: any[] }>("/super-admin/companies?pageSize=200"),
+        api<{ suppliers: any[] }>("/super-admin/suppliers?pageSize=200"),
       ]);
       setPlans(plansRes.plans);
       setSubscriptions(subsRes.subscriptions);
+      setSubTotal(subsRes.total);
+      if (page > Math.max(1, Math.ceil(subsRes.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(subsRes.total / PAGE_SIZE)));
+      }
       setStats(statsRes);
       setCompanies(companiesRes.companies.map((c) => ({ id: c.company.id, name: c.company.name })));
       setSuppliers(suppliersRes.suppliers.map((s) => ({ id: s.id, name: s.name })));
@@ -56,7 +64,7 @@ export default function SubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchData();
@@ -356,6 +364,13 @@ export default function SubscriptionsPage() {
               </table>
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(subTotal / PAGE_SIZE))}
+            total={subTotal}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </div>
       )}
 

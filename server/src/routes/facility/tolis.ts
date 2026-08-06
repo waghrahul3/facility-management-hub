@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { supplierDrops, suppliers, toliLeaders, tolis } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 
 const router = Router();
@@ -17,6 +18,8 @@ router.get(
   "/:facilityId/tolis",
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = eq(tolis.facility_id, param(req, "facilityId"));
     const rows = await db
       .select({
         toli: tolis,
@@ -29,9 +32,15 @@ router.get(
       .from(tolis)
       .leftJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
       .leftJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
-      .where(eq(tolis.facility_id, param(req, "facilityId")))
-      .orderBy(desc(tolis.date));
-    return res.json({ tolis: rows });
+      .where(where)
+      .orderBy(desc(tolis.date))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(tolis)
+      .where(where);
+    return res.json({ tolis: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 

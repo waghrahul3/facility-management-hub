@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { suppliers, tolis, weeklyWorkSummaries } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, notFound } from "../../lib/errors.js";
+import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 import { generateWeeklySummaries } from "../../services/payments.js";
 import { weekParams } from "./_shared.js";
@@ -20,6 +21,11 @@ router.get(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
+    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const where = and(
+      eq(weeklyWorkSummaries.facility_id, param(req, "facilityId")),
+      eq(weeklyWorkSummaries.week_start_date, weekStart)
+    );
     const rows = await db
       .select({
         summary: weeklyWorkSummaries,
@@ -29,14 +35,20 @@ router.get(
       .from(weeklyWorkSummaries)
       .innerJoin(tolis, eq(tolis.id, weeklyWorkSummaries.toli_id))
       .leftJoin(suppliers, eq(suppliers.id, weeklyWorkSummaries.supplier_id))
-      .where(
-        and(
-          eq(weeklyWorkSummaries.facility_id, param(req, "facilityId")),
-          eq(weeklyWorkSummaries.week_start_date, weekStart)
-        )
-      )
-      .orderBy(desc(weeklyWorkSummaries.total_earnings));
-    return res.json({ summaries: rows, weekStart, weekEnd });
+      .where(where)
+      .orderBy(desc(weeklyWorkSummaries.total_earnings))
+      .limit(limit)
+      .offset(offset);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(weeklyWorkSummaries)
+      .where(where);
+    return res.json({
+      summaries: rows,
+      weekStart,
+      weekEnd,
+      ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }),
+    });
   })
 );
 

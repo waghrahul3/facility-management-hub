@@ -8,6 +8,7 @@ import {
   Field,
   LoadingScreen,
   PageHeader,
+  Pagination,
   SearchableSelect,
   Table,
   Td,
@@ -48,19 +49,26 @@ export default function AuditLogPage() {
   const { t } = useI18n();
   const [logs, setLogs] = useState<AuditRow[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [action, setAction] = useState("");
   const [entityType, setEntityType] = useState("");
 
+  const PAGE_SIZE = 50;
+
   const load = useCallback(() => {
     const params = new URLSearchParams();
-    params.set("limit", "200");
+    params.set("page", String(page));
+    params.set("pageSize", String(PAGE_SIZE));
     if (action) params.set("action", action);
     if (entityType) params.set("entityType", entityType);
     api<{ logs: AuditRow[]; total: number }>(`/super-admin/audit-logs?${params}`).then((r) => {
       setLogs(r.logs);
       setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
+      }
     });
-  }, [action, entityType]);
+  }, [action, entityType, page, PAGE_SIZE]);
 
   useEffect(load, [load]);
 
@@ -76,7 +84,10 @@ export default function AuditLogPage() {
           <Field label={t("Action")}>
             <SearchableSelect
               value={action}
-              onChange={(v) => setAction(v)}
+              onChange={(v) => {
+                setAction(v);
+                setPage(1);
+              }}
               options={ACTIONS.map((a) => ({ value: a, label: a }))}
               placeholder={t("All actions")}
               searchPlaceholder={t("Search actions…")}
@@ -87,7 +98,10 @@ export default function AuditLogPage() {
           <Field label={t("Entity")}>
             <SearchableSelect
               value={entityType}
-              onChange={(v) => setEntityType(v)}
+              onChange={(v) => {
+                setEntityType(v);
+                setPage(1);
+              }}
               options={ENTITIES.map((e) => ({ value: e, label: e }))}
               placeholder={t("All entities")}
               searchPlaceholder={t("Search entities…")}
@@ -118,6 +132,13 @@ export default function AuditLogPage() {
               </tr>
             ))}
           </Table>
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
     </div>
