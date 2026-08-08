@@ -688,6 +688,11 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   // Facility — rates / approvals / payments
   // ---------------------------------------------------------------------
+  "Collected from facility": "सुविधेकडून संकलित",
+  "Distributed to workers": "कामगारांना वाटप केले",
+  "Change {name}'s payment status to {status}?": "{name} ची देयक स्थिती {status} मध्ये बदलायची?",
+  "Payment status updated to {status}.": "देयक स्थिती {status} मध्ये अद्ययावत केली.",
+  "Failed to update payment status": "देयक स्थिती अद्ययावत करण्यात अयशस्वी",
   "Collection total": "एकूण संकलन",
   "Total collection:": "एकूण संकलन:",
   "Collection total per supplier = worker earnings + rent charges": "प्रति पुरवठादार एकूण संकलन = कामगारांची कमाई + भाडे शुल्क",
