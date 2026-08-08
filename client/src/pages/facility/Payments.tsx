@@ -202,9 +202,13 @@ export default function PaymentsPage() {
         weekStart,
         advanceDeductions: deductions,
       });
+      const n = r.processed.length;
       setNotice({
-        kind: "success",
-        text: t("Processed {n} supplier payments. Suppliers can now collect and distribute.", { n: r.processed.length }),
+        kind: n > 0 ? "success" : "error",
+        text:
+          n > 0
+            ? t("Processed {n} supplier payments. Suppliers can now collect and distribute.", { n })
+            : t("No supplier payments were created. Check the selected week and that at least one weekly summary is approved."),
       });
       setShowProcess(false);
       load();
@@ -506,13 +510,16 @@ export default function PaymentsPage() {
 
       {/* Process Sunday payments modal — per-supplier advance deduction */}
       <Modal open={showProcess} onClose={() => setShowProcess(false)} title={t("Process Sunday payments")} wide>
-        {(pending ?? []).length === 0 ? (
-          <EmptyState title={t("No pending payments")} hint={t("Process Sunday payments once summaries are approved")} />
-        ) : (
-          <div className="space-y-4">
+        <div className="space-y-4">
+          {(pending ?? []).length === 0 ? (
             <p className="rounded-lg bg-field-50 px-3 py-2 text-xs leading-relaxed text-field-500">
-              {t("Approve the advance recovery for each supplier. The deduction reduces their net payment; the rest carries forward.")}
+              {t("No payments exist for this week yet. Processing creates a payment for every supplier with an approved weekly summary — approve summaries in Approvals first, then process here.")}
             </p>
+          ) : (
+            <>
+              <p className="rounded-lg bg-field-50 px-3 py-2 text-xs leading-relaxed text-field-500">
+                {t("Approve the advance recovery for each supplier. The deduction reduces their net payment; the rest carries forward.")}
+              </p>
             <Table head={[t("Supplier"), t("Earnings − rent"), t("Outstanding advance"), t("Deduct now"), t("Net to pay")]} empty={null}>
               {pending!.map((r) => {
                 const netBefore = r.payment.net_payment;
@@ -552,16 +559,17 @@ export default function PaymentsPage() {
                 );
               })}
             </Table>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="secondary" onClick={() => setShowProcess(false)}>
-                {t("Cancel")}
-              </Button>
-              <Button type="button" variant="success" onClick={processSunday} loading={busy}>
-                {t("Process & lock payments")}
-              </Button>
-            </div>
+            </>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setShowProcess(false)}>
+              {t("Cancel")}
+            </Button>
+            <Button type="button" variant="success" onClick={processSunday} loading={busy}>
+              {t("Process & lock payments")}
+            </Button>
           </div>
-        )}
+        </div>
       </Modal>
 
       <SupplierInvoiceModal

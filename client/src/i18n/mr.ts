@@ -417,6 +417,8 @@ export const mr: Record<string, string> = {
   "Failed to update drop": "पोच अद्ययावत करण्यात अयशस्वी",
   "Toli updated.": "टोळी अद्ययावत केली.",
   "Failed to update toli": "टोळी अद्ययावत करण्यात अयशस्वी",
+  "No payments exist for this week yet. Processing creates a payment for every supplier with an approved weekly summary — approve summaries in Approvals first, then process here.": "या आठवड्यासाठी अद्याप कोणतीही देयके नाहीत. प्रक्रिया केल्यास प्रत्येक मंजूर साप्ताहिक सारांश असलेल्या पुरवठादारासाठी देयक तयार होते — आधी मंजुरी पृष्ठावर सारांश मंजूर करा, मग येथे प्रक्रिया करा.",
+  "No supplier payments were created. Check the selected week and that at least one weekly summary is approved.": "कोणतीही पुरवठादार देयके तयार झाली नाहीत. निवडलेला आठवडा तपासा आणि किमान एक साप्ताहिक सारांश मंजूर असल्याची खात्री करा.",
   "Reports & Ledger": "अहवाल आणि खाते",
   "Report type": "अहवाल प्रकार",
   "Date range": "तारीख श्रेणी",
