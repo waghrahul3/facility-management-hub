@@ -110,6 +110,12 @@ router.post(
         total_amount: roundMoney(rate * quantity_bags),
         onion_category: onion_category || null,
         notes: notes ?? null,
+        // Entries recorded by the facility admin are accepted by default:
+        // the toli leader's confirmation is treated as given, so the entry
+        // is immediately APPROVED and counts toward weekly earnings without
+        // a separate confirmation step. Admins can still reject it later.
+        status: "APPROVED",
+        leader_confirmed_at: new Date(),
       })
       .returning();
 
