@@ -194,6 +194,7 @@ export async function seedDatabase() {
   // 5. Bag sizes + global rates
   // -------------------------------------------------------------------------
   const bagDefs = [
+    { size_name: "1.5kg", weight_kg: 1.5, rate: 1.5 },
     { size_name: "Small", weight_kg: 5, rate: 50 },
     { size_name: "Medium", weight_kg: 10, rate: 75 },
     { size_name: "Large", weight_kg: 20, rate: 100 },

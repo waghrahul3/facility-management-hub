@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -160,7 +161,7 @@ export const facilities = pgTable(
 export const bagSizes = pgTable("bag_sizes", {
   id: uuid("id").defaultRandom().primaryKey(),
   size_name: text("size_name").notNull(),
-  weight_kg: integer("weight_kg").notNull(),
+  weight_kg: doublePrecision("weight_kg").notNull(),
   is_global: boolean("is_global").default(true).notNull(),
   created_by: uuid("created_by"),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -178,7 +179,7 @@ export const rates = pgTable(
     facility_id: uuid("facility_id").references(() => facilities.id, {
       onDelete: "cascade",
     }),
-    rate_amount: integer("rate_amount").notNull(),
+    rate_amount: doublePrecision("rate_amount").notNull(),
     is_global: boolean("is_global").default(true).notNull(),
     effective_from: timestamp("effective_from", { withTimezone: true })
       .defaultNow()
@@ -315,8 +316,8 @@ export const workEntries = pgTable(
     onion_category: text("onion_category"),
     quantity_bags: integer("quantity_bags").notNull(),
     // Snapshot of the applicable rate on that date (facility rate overrides global)
-    rate_per_bag: integer("rate_per_bag").notNull(),
-    total_amount: integer("total_amount").notNull(),
+    rate_per_bag: doublePrecision("rate_per_bag").notNull(),
+    total_amount: doublePrecision("total_amount").notNull(),
     status: workEntryStatusEnum("status").default("DRAFT").notNull(),
     // Toli leader confirmation timestamp (leader accepts the recorded work)
     leader_confirmed_at: timestamp("leader_confirmed_at", { withTimezone: true }),
@@ -349,11 +350,11 @@ export const weeklyWorkSummaries = pgTable(
     week_start_date: timestamp("week_start_date", { withTimezone: true }).notNull(),
     week_end_date: timestamp("week_end_date", { withTimezone: true }).notNull(),
     total_bags_processed: integer("total_bags_processed").default(0).notNull(),
-    total_work_amount: integer("total_work_amount").default(0).notNull(),
-    daily_charge_agreed_amount: integer("daily_charge_agreed_amount")
+    total_work_amount: doublePrecision("total_work_amount").default(0).notNull(),
+    daily_charge_agreed_amount: doublePrecision("daily_charge_agreed_amount")
       .default(0)
       .notNull(),
-    total_earnings: integer("total_earnings").default(0).notNull(),
+    total_earnings: doublePrecision("total_earnings").default(0).notNull(),
     approval_status: summaryStatusEnum("approval_status")
       .default("PENDING")
       .notNull(),
@@ -385,14 +386,14 @@ export const supplierPayments = pgTable(
       .references(() => facilities.id, { onDelete: "cascade" }),
     week_start_date: timestamp("week_start_date", { withTimezone: true }).notNull(),
     week_end_date: timestamp("week_end_date", { withTimezone: true }).notNull(),
-    total_worker_earnings: integer("total_worker_earnings").default(0).notNull(),
+    total_worker_earnings: doublePrecision("total_worker_earnings").default(0).notNull(),
     total_drops: integer("total_drops").default(0).notNull(),
-    total_rent_charges: integer("total_rent_charges").default(0).notNull(),
-    net_payment: integer("net_payment").default(0).notNull(),
+    total_rent_charges: doublePrecision("total_rent_charges").default(0).notNull(),
+    net_payment: doublePrecision("net_payment").default(0).notNull(),
     // Advance recovered from this supplier during this week's settlement
-    advance_deducted: integer("advance_deducted").default(0).notNull(),
+    advance_deducted: doublePrecision("advance_deducted").default(0).notNull(),
     // Supplier's outstanding advance balance before this week's deduction
-    advance_balance_before: integer("advance_balance_before").default(0).notNull(),
+    advance_balance_before: doublePrecision("advance_balance_before").default(0).notNull(),
     collection_date: timestamp("collection_date", { withTimezone: true }),
     collection_status: supplierPaymentStatusEnum("collection_status")
       .default("PENDING")
@@ -426,7 +427,7 @@ export const supplierAdvances = pgTable(
     facility_id: uuid("facility_id")
       .notNull()
       .references(() => facilities.id, { onDelete: "cascade" }),
-    amount: integer("amount").notNull(),
+    amount: doublePrecision("amount").notNull(),
     advance_date: timestamp("advance_date", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -455,7 +456,7 @@ export const supplierPaymentDistributions = pgTable(
     toli_id: uuid("toli_id")
       .notNull()
       .references(() => tolis.id),
-    amount_distributed: integer("amount_distributed").notNull(),
+    amount_distributed: doublePrecision("amount_distributed").notNull(),
     distribution_date: timestamp("distribution_date", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -576,7 +577,7 @@ export const subscriptionPayments = pgTable(
     subscription_id: uuid("subscription_id")
       .notNull()
       .references(() => subscriptions.id),
-    amount: integer("amount").notNull(),
+    amount: doublePrecision("amount").notNull(),
     payment_date: timestamp("payment_date", { withTimezone: true }).notNull(),
     payment_method: text("payment_method").default("CASH").notNull(),
     reference_number: text("reference_number"),
@@ -668,7 +669,7 @@ export const salesOrders = pgTable(
       .references(() => buyers.id),
     order_date: timestamp("order_date", { withTimezone: true }).notNull(),
     status: salesOrderStatusEnum("status").default("PENDING").notNull(),
-    total_amount: integer("total_amount").default(0).notNull(),
+    total_amount: doublePrecision("total_amount").default(0).notNull(),
     notes: text("notes"),
     created_by: uuid("created_by").references(() => users.id),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -695,8 +696,8 @@ export const salesOrderItems = pgTable(
       .notNull()
       .references(() => bagSizes.id),
     quantity_bags: integer("quantity_bags").notNull(),
-    rate_per_bag: integer("rate_per_bag").notNull(),
-    total_amount: integer("total_amount").notNull(),
+    rate_per_bag: doublePrecision("rate_per_bag").notNull(),
+    total_amount: doublePrecision("total_amount").notNull(),
   },
   (t) => [index("order_items_order_idx").on(t.order_id)]
 );
@@ -738,8 +739,8 @@ export const dispatchItems = pgTable(
       .notNull()
       .references(() => salesOrderItems.id),
     quantity_bags: integer("quantity_bags").notNull(),
-    rate_per_bag: integer("rate_per_bag").notNull(),
-    total_amount: integer("total_amount").notNull(),
+    rate_per_bag: doublePrecision("rate_per_bag").notNull(),
+    total_amount: doublePrecision("total_amount").notNull(),
   },
   (t) => [index("dispatch_items_dispatch_idx").on(t.dispatch_id)]
 );
@@ -751,7 +752,7 @@ export const orderPayments = pgTable(
     order_id: uuid("order_id")
       .notNull()
       .references(() => salesOrders.id, { onDelete: "cascade" }),
-    amount: integer("amount").notNull(),
+    amount: doublePrecision("amount").notNull(),
     payment_date: timestamp("payment_date", { withTimezone: true })
       .defaultNow()
       .notNull(),

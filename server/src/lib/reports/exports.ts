@@ -91,14 +91,14 @@ function formatCell(row: Record<string, unknown>, col: ReportColumn): string | n
 }
 
 function formatMoney(n: number): string {
-  return `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  return `₹${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
 // pdfkit's built-in Helvetica fonts use WinAnsi encoding, which has no glyph
 // for the rupee symbol (U+20B9). Emitting "₹" would produce a blank/garbled
 // character in the PDF, so the PDF path uses a font-safe plain-text rupee.
 function pdfMoney(n: number): string {
-  return `Rs. ${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  return `Rs. ${Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
 function pdfSafeText(s: string): string {

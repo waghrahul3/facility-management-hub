@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Onion Facility Center - multi-facility onion processing management with supplier drops, toli work recording, and Sunday payment collection/distribution",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c blue,green \"cross-env PORT=3001 tsx watch server/src/index.ts\" \"vite client --port 3000\"",
+    "dev": "sh ./scripts/ensure-pg.sh && concurrently -k -n api,web -c blue,green \"cross-env PORT=3001 tsx watch server/src/index.ts\" \"vite client\"",
     "build": "tsc -p server/tsconfig.json && vite build client",
     "start": "node server/dist/index.js",
     "preview": "sh ./scripts/ensure-pg.sh && npm run build && NODE_ENV=production node server/dist/index.js",
