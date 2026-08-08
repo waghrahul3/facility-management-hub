@@ -414,6 +414,9 @@ export const mr: Record<string, string> = {
   // Reports
   // ---------------------------------------------------------------------
   "Collect failed: {message}": "संकलन अयशस्वी: {message}",
+  "Showing partial data. Try again.": "आंशिक डेटा दाखवत आहे. पुन्हा प्रयत्न करा.",
+  "No week data loaded": "आठवड्याचा डेटा लोड झालेला नाही",
+  "Payment not processed yet — the facility admin must process Sunday payments for this week. Your collection total of {amount} will appear here once processed.": "देयक अद्याप प्रक्रिया केलेले नाही — सुविधा प्रशासकाने या आठवड्यासाठी रविवार देयकांवर प्रक्रिया करणे आवश्यक आहे. प्रक्रिया झाल्यावर तुमचे {amount} चे एकूण संकलन येथे दिसेल.",
   "Distribution failed: {message}": "वाटप अयशस्वी: {message}",
   "Couldn't load payment details": "देयक तपशील लोड करता आला नाही",
   "Failed to load your weekly payment details. Please try again — or check that the app server and database are running.": "तुमचे साप्ताहिक देयक तपशील लोड करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा — किंवा अ‍ॅप सर्व्हर आणि डेटाबेस चालू आहेत का ते तपासा.",

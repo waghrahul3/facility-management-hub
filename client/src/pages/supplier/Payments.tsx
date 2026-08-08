@@ -86,50 +86,50 @@ export default function SupplierPaymentsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [advances, setAdvances] = useState<MyAdvances | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(() => {
+    setLoaded(false);
     setLoadError(false);
-    api<ThisWeek>("/supplier/this-week").then(setWeek).catch(() => setLoadError(true));
-    api<PaymentPending>("/supplier/payment-pending")
-      .then((r) => {
-        setPending(r);
-        if (r.stored) {
-          setDistributions({});
-        }
-      })
-      .catch(() => setLoadError(true));
+    Promise.allSettled([
+      api<ThisWeek>("/supplier/this-week"),
+      api<PaymentPending>("/supplier/payment-pending"),
+    ]).then(([w, p]) => {
+      if (w.status === "fulfilled") setWeek(w.value);
+      if (p.status === "fulfilled") {
+        setPending(p.value);
+        if (p.value.stored) setDistributions({});
+      }
+      setLoadError(w.status === "rejected" || p.status === "rejected");
+      setLoaded(true);
+    });
     getMyAdvances().then(setAdvances).catch(() => setAdvances(null));
   }, []);
 
   useEffect(load, [load]);
 
-  if (loadError && !week && !pending) {
-    return (
-      <div>
-        <PageHeader title={t("Collect & Distribute")} subtitle={t("Sunday flow: collect from the facility, then distribute to toli leaders")} />
-        <Card>
-          <EmptyState
-            icon="⚠️"
-            title={t("Couldn't load payment details")}
-            hint={t("Failed to load your weekly payment details. Please try again — or check that the app server and database are running.")}
-          />
-          <div className="mt-2 flex justify-center">
-            <Button onClick={load}>{t("Try again")}</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+  if (!loaded) return <LoadingScreen label={t("Loading payment details…")} />;
 
-  if (!week || !pending) return <LoadingScreen label={t("Loading payment details…")} />;
+  // Render with safe defaults so every card — including Step 1 — always
+  // shows content, even when one of the endpoints failed.
+  const safeWeek: ThisWeek = week ?? {
+    weekStart: "",
+    weekEnd: "",
+    summaries: [],
+    totalDrops: 0,
+    totalRent: 0,
+    totalWorkerEarnings: 0,
+    netPayment: 0,
+  };
+  const safePending: PaymentPending = pending ?? { payment: null, stored: null };
 
-  const preview = pending.payment;
-  const stored = pending.stored;
+  const preview = safePending.payment;
+  const stored = safePending.stored;
   const collectionStatus = stored?.collection_status ?? "PENDING";
-  const netToCollect = stored?.net_payment ?? preview?.netPayment ?? week.netPayment;
+  const netToCollect = stored?.net_payment ?? preview?.netPayment ?? safeWeek.netPayment;
   const totalDistributed = Object.values(distributions).reduce((s, v) => s + (Number(v) || 0), 0);
   const remaining = netToCollect - totalDistributed;
-  const approvedSummaries = week.summaries.filter((s) => s.summary.approval_status === "APPROVED");
+  const approvedSummaries = safeWeek.summaries.filter((s) => s.summary.approval_status === "APPROVED");
 
   const collect = async () => {
     if (!stored) return;
@@ -194,25 +194,40 @@ export default function SupplierPaymentsPage() {
         </div>
       )}
 
+      {loadError && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>
+            {t("Couldn't load payment details")} — {t("Showing partial data. Try again.")}
+          </span>
+          <Button size="sm" variant="secondary" onClick={load}>
+            {t("Try again")}
+          </Button>
+        </div>
+      )}
+
       {/* Net payment breakdown */}
       <Card
         title={t("Net payment for this week")}
-        subtitle={t("Week of {date}", { date: fmtDate(week.weekStart) })}
+        subtitle={
+          safeWeek.weekStart
+            ? t("Week of {date}", { date: fmtDate(safeWeek.weekStart) })
+            : t("No week data loaded")
+        }
         className="mb-6"
       >
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl bg-field-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-field-400">{t("Worker earnings")}</p>
             <p className="mt-1 font-display text-xl font-bold text-field-900">
-              <Money value={week.totalWorkerEarnings} />
+              <Money value={safeWeek.totalWorkerEarnings} />
             </p>
           </div>
           <div className="rounded-xl bg-field-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-field-400">
-              {t("Rent charges ({count} drops)", { count: week.totalDrops })}
+              {t("Rent charges ({count} drops)", { count: safeWeek.totalDrops })}
             </p>
             <p className="mt-1 font-display text-xl font-bold text-red-600">
-              − <Money value={week.totalRent} />
+              − <Money value={safeWeek.totalRent} />
             </p>
           </div>
           <div className="rounded-xl bg-onion-50 p-4">
@@ -337,6 +352,12 @@ export default function SupplierPaymentsPage() {
           <div className="rounded-lg bg-onion-50 px-4 py-3 text-sm text-onion-800">
             {t("✅ Collected{via}. Proceed to distribution below.", {
               via: stored?.payment_method ? ` via ${stored.payment_method.replace("_", " ")}` : "",
+            })}
+          </div>
+        ) : approvedSummaries.length > 0 ? (
+          <div className="rounded-lg bg-field-50 px-4 py-3 text-sm leading-relaxed text-field-600">
+            {t("Payment not processed yet — the facility admin must process Sunday payments for this week. Your collection total of {amount} will appear here once processed.", {
+              amount: netToCollect.toLocaleString("en-IN"),
             })}
           </div>
         ) : (
