@@ -415,6 +415,9 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   "Collect failed: {message}": "संकलन अयशस्वी: {message}",
   "Distribution failed: {message}": "वाटप अयशस्वी: {message}",
+  "Couldn't load payment details": "देयक तपशील लोड करता आला नाही",
+  "Failed to load your weekly payment details. Please try again — or check that the app server and database are running.": "तुमचे साप्ताहिक देयक तपशील लोड करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा — किंवा अ‍ॅप सर्व्हर आणि डेटाबेस चालू आहेत का ते तपासा.",
+  "Try again": "पुन्हा प्रयत्न करा",
   "Edit drop": "पोच संपादित करा",
   "Edit toli": "टोळी संपादित करा",
   "Drop updated.": "पोच अद्ययावत केली.",

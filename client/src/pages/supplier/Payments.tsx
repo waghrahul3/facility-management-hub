@@ -85,19 +85,41 @@ export default function SupplierPaymentsPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [advances, setAdvances] = useState<MyAdvances | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
-    api<ThisWeek>("/supplier/this-week").then(setWeek);
-    api<PaymentPending>("/supplier/payment-pending").then((r) => {
-      setPending(r);
-      if (r.stored) {
-        setDistributions({});
-      }
-    });
+    setLoadError(false);
+    api<ThisWeek>("/supplier/this-week").then(setWeek).catch(() => setLoadError(true));
+    api<PaymentPending>("/supplier/payment-pending")
+      .then((r) => {
+        setPending(r);
+        if (r.stored) {
+          setDistributions({});
+        }
+      })
+      .catch(() => setLoadError(true));
     getMyAdvances().then(setAdvances).catch(() => setAdvances(null));
   }, []);
 
   useEffect(load, [load]);
+
+  if (loadError && !week && !pending) {
+    return (
+      <div>
+        <PageHeader title={t("Collect & Distribute")} subtitle={t("Sunday flow: collect from the facility, then distribute to toli leaders")} />
+        <Card>
+          <EmptyState
+            icon="⚠️"
+            title={t("Couldn't load payment details")}
+            hint={t("Failed to load your weekly payment details. Please try again — or check that the app server and database are running.")}
+          />
+          <div className="mt-2 flex justify-center">
+            <Button onClick={load}>{t("Try again")}</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (!week || !pending) return <LoadingScreen label={t("Loading payment details…")} />;
 
