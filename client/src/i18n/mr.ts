@@ -682,6 +682,10 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   // Facility — rates / approvals / payments
   // ---------------------------------------------------------------------
+  "Collection total": "एकूण संकलन",
+  "Total collection:": "एकूण संकलन:",
+  "Collection total per supplier = worker earnings + rent charges": "प्रति पुरवठादार एकूण संकलन = कामगारांची कमाई + भाडे शुल्क",
+  "Worker earnings + rent charges each supplier will collect from the facility": "प्रत्येक पुरवठादार सुविधेकडून गोळा करणारी कामगारांची कमाई + भाडे शुल्क",
   "Facility Rates": "सुविधा दर",
   "Facility-specific per-bag rates override the global defaults": "सुविधा-विशिष्ट प्रति पिशवी दर जागतिक डीफॉल्ट ओलांडतात",
   "Facility-specific rates": "सुविधा-विशिष्ट दर",
