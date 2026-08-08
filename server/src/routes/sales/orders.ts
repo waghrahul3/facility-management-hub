@@ -11,6 +11,7 @@ import {
 } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, forbidden, notFound } from "../../lib/errors.js";
+import { roundMoney } from "../../lib/format.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { reqLogger } from "../../lib/logger.js";
 import { param } from "../../lib/params.js";
@@ -128,7 +129,7 @@ router.post(
       const qty = Number(quantity_bags);
       const rate = Number(rate_per_bag);
       if (qty <= 0 || rate < 0) throw badRequest("Quantity must be > 0 and rate >= 0");
-      const lineTotal = qty * rate;
+      const lineTotal = roundMoney(qty * rate);
       total += lineTotal;
       validated.push({
         onion_category: onion_category || null,
@@ -156,7 +157,7 @@ router.post(
         buyer_id,
         order_date: new Date(order_date),
         status: "PENDING",
-        total_amount: total,
+        total_amount: roundMoney(total),
         notes: notes ?? null,
         created_by: req.auth?.userId,
       })

@@ -234,10 +234,10 @@ export default function SupplierInvoiceModal({
                       <tr key={i} className="bg-white">
                         <td className="px-3 py-2.5 font-medium">{line.leader}</td>
                         <td className="px-3 py-2.5 text-right">{line.bags}</td>
-                        <td className="px-3 py-2.5 text-right">₹{line.workAmount.toLocaleString("en-IN")}</td>
-                        <td className="px-3 py-2.5 text-right">₹{line.dayCharge.toLocaleString("en-IN")}</td>
+                        <td className="px-3 py-2.5 text-right">₹{line.workAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2.5 text-right">₹{line.dayCharge.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
                         <td className="px-3 py-2.5 text-right font-semibold text-onion-800">
-                          ₹{line.earnings.toLocaleString("en-IN")}
+                          ₹{line.earnings.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}
@@ -265,7 +265,7 @@ export default function SupplierInvoiceModal({
                           <tr key={d.id} className="bg-white">
                             <td className="px-3 py-2">{fmtDate(d.dropDate)}</td>
                             <td className="px-3 py-2 text-right">{d.workers}</td>
-                            <td className="px-3 py-2 text-right">₹{d.rent.toLocaleString("en-IN")}</td>
+                            <td className="px-3 py-2 text-right">₹{d.rent.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -279,18 +279,18 @@ export default function SupplierInvoiceModal({
                 <div className="w-full max-w-xs space-y-1.5 text-sm">
                   <div className="flex justify-between px-3">
                     <span className="text-field-500">{t("Worker earnings")}</span>
-                    <span className="font-medium">₹{m.toliLines.reduce((s, l) => s + l.earnings, 0).toLocaleString("en-IN")}</span>
+                    <span className="font-medium">₹{m.toliLines.reduce((s, l) => s + l.earnings, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between px-3">
                     <span className="text-field-500">{t("Drop rent")}</span>
                     <span className="font-medium text-red-600">
-                      − ₹{m.drops.reduce((s, d) => s + d.rent, 0).toLocaleString("en-IN")}
+                      − ₹{m.drops.reduce((s, d) => s + d.rent, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="flex justify-between rounded-lg bg-onion-700 px-3 py-2.5 text-white">
                     <span className="font-semibold">{t("Net payment")}</span>
                     <span className="font-display font-bold">
-                      ₹{Math.max(0, m.toliLines.reduce((s, l) => s + l.earnings, 0) - m.drops.reduce((s, d) => s + d.rent, 0)).toLocaleString("en-IN")}
+                      ₹{Math.max(0, m.toliLines.reduce((s, l) => s + l.earnings, 0) - m.drops.reduce((s, d) => s + d.rent, 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

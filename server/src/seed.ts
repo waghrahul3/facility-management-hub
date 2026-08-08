@@ -20,6 +20,7 @@ import {
 import { hashPassword } from "./auth/password.js";
 import { generateWeeklySummaries, processSupplierPayments } from "./services/payments.js";
 import { endOfWeek, startOfWeek } from "./lib/date.js";
+import { roundMoney } from "./lib/format.js";
 
 const SUPER_ADMIN_EMAIL = "superadmin@onionfacility.local";
 const FACILITY_ADMIN_EMAIL = "admin@onionfacility.local";
@@ -421,7 +422,7 @@ export async function seedDatabase() {
         bag_size_id: smallBag.id,
         quantity_bags: qty,
         rate_per_bag: smallRate.rate_amount,
-        total_amount: smallRate.rate_amount * qty,
+        total_amount: roundMoney(smallRate.rate_amount * qty),
         status: "APPROVED",
         leader_confirmed_at: new Date(),
       });
@@ -432,7 +433,7 @@ export async function seedDatabase() {
         bag_size_id: mediumBag.id,
         quantity_bags: Math.max(3, qty - 4),
         rate_per_bag: mediumRate.rate_amount,
-        total_amount: mediumRate.rate_amount * Math.max(3, qty - 4),
+        total_amount: roundMoney(mediumRate.rate_amount * Math.max(3, qty - 4)),
         status: "APPROVED",
         leader_confirmed_at: new Date(),
       });

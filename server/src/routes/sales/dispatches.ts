@@ -4,6 +4,7 @@ import { db } from "../../db/index.js";
 import { dispatchItems, dispatches, salesOrderItems, salesOrders } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, forbidden, notFound } from "../../lib/errors.js";
+import { roundMoney } from "../../lib/format.js";
 import { reqLogger } from "../../lib/logger.js";
 import { param } from "../../lib/params.js";
 import { myCompanyId } from "./_shared.js";
@@ -68,7 +69,7 @@ router.post(
           `Loading ${qty} bags exceeds remaining ${remaining} for line “${item.onion_category ?? item.bag_size_id}”`
         );
       }
-      const lineTotal = qty * item.rate_per_bag;
+      const lineTotal = roundMoney(qty * item.rate_per_bag);
       dispatchTotal += lineTotal;
       validated.push({
         order_item_id,
