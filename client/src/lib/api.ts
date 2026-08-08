@@ -137,6 +137,111 @@ export const put = <T = unknown>(path: string, body?: unknown) =>
   api<T>(path, { method: "PUT", body });
 export const del = <T = unknown>(path: string) => api<T>(path, { method: "DELETE" });
 
+// --- Password management ---
+
+/** Request a one-time password-reset link for an email address. */
+export const forgotPassword = (email: string) =>
+  api<{ ok: true }>("/auth/forgot-password", { method: "POST", body: { email }, retry: false });
+
+/** Exchange a reset token for a new password. */
+export const resetPassword = (token: string, password: string) =>
+  api<{ ok: true }>("/auth/reset-password", { method: "POST", body: { token, password }, retry: false });
+
+/** Signed-in user changes their own password. */
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api<{ ok: true }>("/auth/change-password", { method: "POST", body: { currentPassword, newPassword } });
+
+/** Admin resets another user's password (scoped by role). */
+export const adminResetPassword = (userId: string, newPassword: string) =>
+  api<{ ok: true }>("/auth/admin-reset-password", { method: "POST", body: { userId, newPassword } });
+
+// --- Profile editing ---
+
+/** Signed-in user edits their own profile (name/phone/email, supplier extras). */
+export const updateProfile = (payload: {
+  name?: string;
+  phone?: string | null;
+  email?: string;
+  contact_person?: string | null;
+  address?: string | null;
+  city?: string | null;
+}) => api<{ user: AuthUser }>("/auth/profile", { method: "PUT", body: payload });
+
+/** Super Admin edits a facility admin's profile. */
+export const updateFacilityAdmin = (id: string, payload: { name: string; phone?: string | null; email: string }) =>
+  api<{ facilityAdmin: unknown }>(`/super-admin/facility-admins/${id}`, { method: "PUT", body: payload });
+
+/** Super Admin edits a company admin's profile. */
+export const updateCompanyAdmin = (id: string, payload: { name: string; phone?: string | null; email: string }) =>
+  api<{ companyAdmin: unknown }>(`/super-admin/company-admins/${id}`, { method: "PUT", body: payload });
+
+/** Company Admin edits a facility admin of their company. */
+export const updateCompanyFacilityAdmin = (companyId: string, id: string, payload: { name: string; phone?: string | null; email: string }) =>
+  api<{ facilityAdmin: unknown }>(`/company/${companyId}/facility-admins/${id}`, { method: "PUT", body: payload });
+
+/** Super Admin edits a supplier record (syncs the linked login user). */
+export const updateSupplier = (
+  id: string,
+  payload: { name: string; phone?: string | null; email?: string | null; contact_person?: string | null; address?: string | null; city?: string | null }
+) => api<{ supplier: unknown }>(`/super-admin/suppliers/${id}`, { method: "PUT", body: payload });
+
+/** Supplier reads their own profile record (for contact/address/city fields). */
+export const getSupplierProfile = () =>
+  api<{ supplier: { id: string; name: string; email: string | null; phone: string | null; contact_person: string | null; address: string | null; city: string | null } }>("/supplier/profile");
+
+/** Facility admin edits a toli leader's name/phone (syncs registry + login). */
+export const updateToliLeader = (
+  facilityId: string,
+  toliId: string,
+  payload: { leader_name: string; phone?: string | null }
+) => api<{ toli: unknown }>(`/facility/${facilityId}/tolis/${toliId}/leader`, { method: "PUT", body: payload });
+
+// --- Supplier advances ---
+
+export interface FacilityAdvanceRow {
+  advance: {
+    id: string;
+    supplier_id: string;
+    facility_id: string;
+    amount: number;
+    advance_date: string;
+    payment_method: "CASH" | "BANK_TRANSFER";
+    notes: string | null;
+    created_at: string;
+  };
+  supplier: { id: string; name: string };
+}
+
+export const listFacilityAdvances = (facilityId: string, params?: { page?: number; pageSize?: number; q?: string }) =>
+  api<{ advances: FacilityAdvanceRow[]; total: number }>(
+    `/facility/${facilityId}/advances?${new URLSearchParams(
+      Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]))
+    ).toString()}`
+  );
+
+export const recordAdvance = (
+  facilityId: string,
+  payload: { supplier_id: string; amount: number; advance_date: string; payment_method: "CASH" | "BANK_TRANSFER"; notes?: string | null }
+) => api<{ advance: unknown }>(`/facility/${facilityId}/advances`, { method: "POST", body: payload });
+
+export const deleteAdvance = (facilityId: string, id: string) =>
+  api<{ ok: true }>(`/facility/${facilityId}/advances/${id}`, { method: "DELETE" });
+
+export const getMyAdvances = () =>
+  api<{
+    advances: Array<{
+      id: string;
+      amount: number;
+      advance_date: string;
+      payment_method: string;
+      notes: string | null;
+      facility: { id: string; name: string };
+    }>;
+    totalGiven: number;
+    totalOutstanding: number;
+    byFacility: Array<{ facilityId: string; outstanding: number }>;
+  }>("/supplier/advances");
+
 // --- Report download helpers ---
 
 export function downloadBlob(blob: Blob, filename: string) {

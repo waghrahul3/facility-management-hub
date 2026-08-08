@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bagSizes, tolis, workEntries } from "../../db/schema.js";
 import { requireFacilityAccess, requireRole } from "../../auth/middleware.js";
@@ -27,10 +27,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
     const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const query = req.query as Record<string, unknown>;
+    const q = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
     const where = and(
       eq(workEntries.facility_id, param(req, "facilityId")),
       gte(workEntries.work_date, weekStart),
-      lte(workEntries.work_date, weekEnd)
+      lte(workEntries.work_date, weekEnd),
+      q ? ilike(tolis.leader_name, `%${q}%`) : undefined,
+      status ? eq(workEntries.status, status as "DRAFT" | "APPROVED" | "PAID") : undefined
     );
     const rows = await db
       .select({
@@ -48,6 +53,7 @@ router.get(
     const [totalRow] = await db
       .select({ value: count() })
       .from(workEntries)
+      .innerJoin(tolis, eq(tolis.id, workEntries.toli_id))
       .where(where);
     return res.json({ entries: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })

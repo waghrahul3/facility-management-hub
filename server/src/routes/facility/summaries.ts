@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { suppliers, tolis, weeklyWorkSummaries } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
@@ -22,9 +22,16 @@ router.get(
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
     const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const query = req.query as Record<string, unknown>;
+    const q = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
     const where = and(
       eq(weeklyWorkSummaries.facility_id, param(req, "facilityId")),
-      eq(weeklyWorkSummaries.week_start_date, weekStart)
+      eq(weeklyWorkSummaries.week_start_date, weekStart),
+      q ? or(ilike(tolis.leader_name, `%${q}%`), ilike(suppliers.name, `%${q}%`)) : undefined,
+      status
+        ? eq(weeklyWorkSummaries.approval_status, status as "PENDING" | "APPROVED" | "REJECTED")
+        : undefined
     );
     const rows = await db
       .select({
@@ -42,6 +49,8 @@ router.get(
     const [totalRow] = await db
       .select({ value: count() })
       .from(weeklyWorkSummaries)
+      .innerJoin(tolis, eq(tolis.id, weeklyWorkSummaries.toli_id))
+      .leftJoin(suppliers, eq(suppliers.id, weeklyWorkSummaries.supplier_id))
       .where(where);
     return res.json({
       summaries: rows,

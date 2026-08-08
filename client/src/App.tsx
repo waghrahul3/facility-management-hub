@@ -60,6 +60,9 @@ const LeaderPaymentHistoryPage = lazy(() => import("./pages/tolileader/PaymentHi
 
 // Auth
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const AccountPage = lazy(() => import("./pages/AccountPage"));
 
 function RouteFallback() {
   const { t } = useI18n();
@@ -160,6 +163,9 @@ function Protected() {
         <Route path="/leader/earnings" element={<RequireRole user={user} roles={["TOLI_LEADER"]}><EarningsPage /></RequireRole>} />
         <Route path="/leader/payments-history" element={<RequireRole user={user} roles={["TOLI_LEADER"]}><LeaderPaymentHistoryPage /></RequireRole>} />
 
+        {/* Account — available to every signed-in role */}
+        <Route path="/account" element={<RequireRole user={user} roles={["SUPER_ADMIN", "COMPANY_ADMIN", "FACILITY_ADMIN", "SUPPLIER", "TOLI_LEADER"]}><AccountPage /></RequireRole>} />
+
         <Route path="*" element={<Navigate to={homeFor(user.role)} replace />} />
       </Routes>
     </AppShell>
@@ -186,6 +192,8 @@ export default function App() {
     <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/*" element={<Protected />} />
       </Routes>
     </Suspense>

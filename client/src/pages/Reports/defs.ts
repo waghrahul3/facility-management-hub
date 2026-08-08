@@ -35,6 +35,11 @@ export const REPORT_DEFS: Record<string, ReportDef> = {
     icon: "📋",
     description: "Running balance statements per supplier with activity log",
   },
+  "supplier-invoice": {
+    label: "Supplier Invoice",
+    icon: "🧾",
+    description: "Per-supplier weekly invoice — worker earnings minus drop rent",
+  },
   rent: {
     label: "Rent Summary",
     icon: "🏢",

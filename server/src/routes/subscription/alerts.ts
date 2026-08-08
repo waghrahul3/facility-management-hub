@@ -68,7 +68,7 @@ router.post(
     const log = reqLogger({ method: "POST", path: "/subscriptions/auto-expire" });
     const now = new Date();
 
-    const [result] = await db
+    const expired = await db
       .update(subscriptions)
       .set({ status: "EXPIRED", updated_at: now })
       .where(
@@ -79,10 +79,10 @@ router.post(
       )
       .returning({ id: subscriptions.id });
 
-    log.info("Auto-expired subscriptions", { count: result ? 1 : 0 });
+    log.info("Auto-expired subscriptions", { count: expired.length });
 
     return res.json({
-      expiredCount: result ? 1 : 0,
+      expiredCount: expired.length,
       message: "Expired subscriptions updated"
     });
   })

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, updateFacilityAdmin } from "../../lib/api";
 import { useI18n } from "../../i18n";
 import {
   Badge,
@@ -17,6 +17,8 @@ import {
   Table,
   Td,
 } from "../../components/ui";
+import ResetPasswordModal from "../../components/ResetPasswordModal";
+import EditUserModal from "../../components/EditUserModal";
 
 interface FacilityAdmin {
   id: string;
@@ -44,6 +46,9 @@ export default function FacilityAdminsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", facilityId: "" });
   const [busy, setBusy] = useState(false);
+  const [resetTarget, setResetTarget] = useState<FacilityAdmin | null>(null);
+  const [editTarget, setEditTarget] = useState<FacilityAdmin | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
 
   const load = useCallback(() => {
     api<{ facilityAdmins: FacilityAdmin[]; total: number }>(`/super-admin/facility-admins?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
@@ -81,6 +86,22 @@ export default function FacilityAdminsPage() {
     }
   }
 
+  async function handleEdit(values: { name: string; phone: string; email: string }) {
+    if (!editTarget) return;
+    setEditBusy(true);
+    try {
+      await updateFacilityAdmin(editTarget.id, {
+        name: values.name,
+        phone: values.phone.trim() || null,
+        email: values.email,
+      });
+      setEditTarget(null);
+      load();
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -95,7 +116,7 @@ export default function FacilityAdminsPage() {
         <Card><EmptyState title={t("No facility admins yet")} hint={t("Create an admin for a facility")} /></Card>
       ) : (
         <Card>
-          <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Role")]} empty={null}>
+          <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Role"), t("Actions")]} empty={null}>
             {admins.map((a) => (
               <tr key={a.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{a.name}</Td>
@@ -109,6 +130,16 @@ export default function FacilityAdminsPage() {
                   )}
                 </Td>
                 <Td><Badge tone="blue">FACILITY ADMIN</Badge></Td>
+                <Td>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => setEditTarget(a)}>
+                      {t("Edit")}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setResetTarget(a)}>
+                      {t("Reset password")}
+                    </Button>
+                  </div>
+                </Td>
               </tr>
             ))}
           </Table>
@@ -121,6 +152,22 @@ export default function FacilityAdminsPage() {
           />
         </Card>
       )}
+
+      <ResetPasswordModal
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        userId={resetTarget?.id ?? null}
+        userName={resetTarget?.name}
+      />
+
+      <EditUserModal
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        title={t("Edit facility admin")}
+        initial={editTarget ? { name: editTarget.name, phone: editTarget.phone, email: editTarget.email } : null}
+        saving={editBusy}
+        onSave={handleEdit}
+      />
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t("New facility admin")}>
         <form onSubmit={handleSubmit} className="space-y-4">

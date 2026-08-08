@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { companies, facilities, users } from "../../db/schema.js";
 import { hashPassword } from "../../auth/password.js";
@@ -200,6 +200,52 @@ router.post(
       newValues: { id: user.id, name: user.name, email: user.email },
     });
     return res.status(201).json({ facilityAdmin: user });
+  })
+);
+
+router.put(
+  "/facility-admins/:id",
+  asyncHandler(async (req, res) => {
+    const existing = (
+      await db.select().from(users).where(eq(users.id, param(req, "id"))).limit(1)
+    )[0];
+    if (!existing) throw notFound("Facility admin not found");
+    if (existing.role !== "FACILITY_ADMIN") throw badRequest("User is not a facility admin");
+
+    const { name, phone, email } = req.body ?? {};
+    let newEmail: string | null = null;
+    if (email !== undefined && email !== null && String(email).toLowerCase() !== existing.email) {
+      newEmail = String(email).toLowerCase().trim();
+      const [dup] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, newEmail), ne(users.id, existing.id)))
+        .limit(1);
+      if (dup) throw badRequest("A user with this email already exists");
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        name: name !== undefined && name !== null && String(name).trim() !== "" ? String(name).trim() : existing.name,
+        phone: phone !== undefined ? phone : existing.phone,
+        email: newEmail ?? existing.email,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, existing.id))
+      .returning();
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "FACILITY_ADMIN",
+      entityId: updated.id,
+      oldValues: { id: existing.id, name: existing.name, email: existing.email },
+      newValues: { id: updated.id, name: updated.name, email: updated.email },
+    });
+    return res.json({ facilityAdmin: updated });
   })
 );
 

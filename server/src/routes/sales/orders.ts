@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {
   bagSizes,
@@ -29,9 +29,15 @@ router.get(
     const facilityId =
       role === "FACILITY_ADMIN" ? req.auth.facilityId : (req.query.facilityId as string) || null;
     const { limit, offset, page, pageSize } = parsePage(req.query);
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
     const where = and(
       cid ? eq(salesOrders.company_id, cid) : undefined,
-      facilityId ? eq(salesOrders.facility_id, facilityId) : undefined
+      facilityId ? eq(salesOrders.facility_id, facilityId) : undefined,
+      q ? or(ilike(salesOrders.order_number, `%${q}%`), ilike(buyers.name, `%${q}%`)) : undefined,
+      status
+        ? eq(salesOrders.status, status as "PENDING" | "PARTIALLY_DISPATCHED" | "COMPLETED" | "CANCELLED")
+        : undefined
     );
 
     const rows = await db
@@ -52,7 +58,11 @@ router.get(
       .orderBy(desc(salesOrders.created_at))
       .limit(limit)
       .offset(offset);
-    const [totalRow] = await db.select({ value: count() }).from(salesOrders).where(where);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(salesOrders)
+      .innerJoin(buyers, eq(buyers.id, salesOrders.buyer_id))
+      .where(where);
     return res.json({ orders: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );

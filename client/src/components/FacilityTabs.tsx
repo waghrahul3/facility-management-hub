@@ -29,15 +29,15 @@ const sectionLabels: Record<(typeof sectionKeys)[number], string> = {
 export default function FacilityTabs({ base }: { base: string }) {
   const { t } = useI18n();
   return (
-    <nav className="no-scrollbar -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl border border-field-200 bg-white p-1">
+    <nav className="no-scrollbar -mx-1 mb-6 flex gap-1 overflow-x-auto rounded-xl border border-field-200 bg-white p-1 shadow-sm shadow-field-900/5">
       {sectionKeys.map((key) => (
         <NavLink
           key={key}
           to={`${base}/${key}`}
           className={({ isActive }) =>
-            `whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 ${
+            `touch-target flex items-center whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-semibold transition-all duration-150 ${
               isActive
-                ? "bg-onion-700 text-white shadow-sm"
+                ? "bg-gradient-to-br from-onion-600 to-onion-800 text-white shadow-sm shadow-onion-900/25"
                 : "text-field-600 hover:bg-field-100 hover:text-field-900"
             }`
           }

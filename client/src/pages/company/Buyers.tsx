@@ -10,6 +10,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Modal,
   PageHeader,
@@ -42,6 +43,8 @@ export default function BuyersPage() {
   const { t } = useI18n();
   const isSuper = user?.role === "SUPER_ADMIN";
   const [rows, setRows] = useState<BuyerRow[] | null>(null);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -51,14 +54,16 @@ export default function BuyersPage() {
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(() => {
-    api<{ buyers: BuyerRow[]; total: number }>(`/sales/buyers?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ buyers: BuyerRow[]; total: number }>(
+      `/sales/buyers?page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+    ).then((r) => {
       setRows(r.buyers);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [page]);
+  }, [page, q, status]);
 
   useEffect(load, [load]);
 
@@ -150,13 +155,37 @@ export default function BuyersPage() {
         </div>
       )}
 
+      <div className="mb-4">
+        <ListFilters
+          search={q}
+          onSearch={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          status={status}
+          onStatus={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+          statusOptions={[
+            { value: "ACTIVE", label: t("Active") },
+            { value: "INACTIVE", label: t("Inactive") },
+          ]}
+          searchPlaceholder={t("Search name, phone or city…")}
+        />
+      </div>
+
       {rows.length === 0 ? (
         <Card>
-          <EmptyState
-            icon="🤝"
-            title={t("No buyers yet")}
-            hint={t("Register your first buyer — they can then place onion orders")}
-          />
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No buyers match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState
+              icon="🤝"
+              title={t("No buyers yet")}
+              hint={t("Register your first buyer — they can then place onion orders")}
+            />
+          )}
         </Card>
       ) : (
         <Card>

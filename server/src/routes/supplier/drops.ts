@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { facilities, supplierDrops, tolis } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
@@ -19,10 +19,14 @@ router.get(
     const weekStart = q.weekStart ? new Date(String(q.weekStart)) : startOfWeek(new Date());
     const weekEnd = q.weekEnd ? new Date(String(q.weekEnd)) : endOfWeek(weekStart);
     const { limit, offset, page, pageSize } = parsePage(q);
+    const search = typeof q.q === "string" ? q.q.trim() : "";
+    const status = typeof q.status === "string" ? q.status.trim() : "";
     const where = and(
       eq(supplierDrops.supplier_id, mySupplierId(req)),
       gte(supplierDrops.drop_date, weekStart),
-      lte(supplierDrops.drop_date, weekEnd)
+      lte(supplierDrops.drop_date, weekEnd),
+      search ? ilike(facilities.name, `%${search}%`) : undefined,
+      status ? eq(supplierDrops.status, status as "REGISTERED" | "COMPLETED") : undefined
     );
 
     const rows = await db
@@ -36,7 +40,11 @@ router.get(
       .orderBy(desc(supplierDrops.drop_date))
       .limit(limit)
       .offset(offset);
-    const [totalRow] = await db.select({ value: count() }).from(supplierDrops).where(where);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(supplierDrops)
+      .leftJoin(facilities, eq(facilities.id, supplierDrops.facility_id))
+      .where(where);
     return res.json({ drops: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );

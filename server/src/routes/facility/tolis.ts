@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { supplierDrops, suppliers, toliLeaders, tolis } from "../../db/schema.js";
+import { supplierDrops, suppliers, toliLeaders, tolis, users } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
@@ -19,7 +19,14 @@ router.get(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
-    const where = eq(tolis.facility_id, param(req, "facilityId"));
+    const query = req.query as Record<string, unknown>;
+    const q = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
+    const where = and(
+      eq(tolis.facility_id, param(req, "facilityId")),
+      q ? or(ilike(tolis.leader_name, `%${q}%`), ilike(suppliers.name, `%${q}%`)) : undefined,
+      status ? eq(tolis.status, status as "ACTIVE" | "COMPLETED") : undefined
+    );
     const rows = await db
       .select({
         toli: tolis,
@@ -28,10 +35,16 @@ router.get(
           rent_per_drop: supplierDrops.rent_per_drop,
         },
         supplier: { id: suppliers.id, name: suppliers.name },
+        // Toli leader registry row (name + phone)
+        leader: { id: toliLeaders.id, phone: toliLeaders.phone },
+        // Login account linked to this toli leader (if one exists)
+        user: { id: users.id, name: users.name, email: users.email, phone: users.phone },
       })
       .from(tolis)
       .leftJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
       .leftJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
+      .leftJoin(toliLeaders, eq(toliLeaders.id, tolis.leader_id))
+      .leftJoin(users, and(eq(users.toli_id, tolis.id), eq(users.role, "TOLI_LEADER")))
       .where(where)
       .orderBy(desc(tolis.date))
       .limit(limit)
@@ -39,6 +52,8 @@ router.get(
     const [totalRow] = await db
       .select({ value: count() })
       .from(tolis)
+      .leftJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
+      .leftJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
       .where(where);
     return res.json({ tolis: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
@@ -117,6 +132,97 @@ router.put(
       newValues: updated,
     });
     return res.json({ toli: updated });
+  })
+);
+
+// PUT /:facilityId/tolis/:toliId/leader — edit the toli leader's name/phone.
+// Keeps the toli leader registry, the toli's denormalized leader_name, and
+// the linked TOLI_LEADER login account (if one exists) all in sync.
+router.put(
+  "/:facilityId/tolis/:toliId/leader",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const toli = (
+      await db.select().from(tolis).where(eq(tolis.id, param(req, "toliId"))).limit(1)
+    )[0];
+    if (!toli) throw notFound("Toli not found");
+
+    const { leader_name, phone } = req.body ?? {};
+    if (!leader_name || typeof leader_name !== "string" || leader_name.trim() === "") {
+      throw badRequest("leader_name is required");
+    }
+    const cleanName = leader_name.trim();
+    const cleanPhone = phone !== undefined && phone !== null ? String(phone).trim() || null : undefined;
+
+    // 1) Toli leader registry
+    let leader = null;
+    let oldLeaderPhone: string | null = null;
+    if (toli.leader_id) {
+      const [existingLeader] = await db
+        .select()
+        .from(toliLeaders)
+        .where(eq(toliLeaders.id, toli.leader_id))
+        .limit(1);
+      oldLeaderPhone = existingLeader?.phone ?? null;
+      [leader] = await db
+        .update(toliLeaders)
+        .set({
+          name: cleanName,
+          phone: cleanPhone !== undefined ? cleanPhone : undefined,
+          updated_at: new Date(),
+        })
+        .where(eq(toliLeaders.id, toli.leader_id))
+        .returning();
+    }
+
+    // 2) Denormalized leader_name on the toli row
+    const [updatedToli] = await db
+      .update(tolis)
+      .set({ leader_name: cleanName, updated_at: new Date() })
+      .where(eq(tolis.id, toli.id))
+      .returning();
+
+    // 3) Linked TOLI_LEADER login account (if one exists)
+    const linkedUser = (
+      await db
+        .select()
+        .from(users)
+        .where(and(eq(users.toli_id, toli.id), eq(users.role, "TOLI_LEADER")))
+        .limit(1)
+    )[0];
+    if (linkedUser) {
+      await db
+        .update(users)
+        .set({
+          name: cleanName,
+          phone: cleanPhone !== undefined ? cleanPhone : linkedUser.phone,
+          updated_at: new Date(),
+        })
+        .where(eq(users.id, linkedUser.id));
+    }
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "TOLI_LEADER",
+      entityId: toli.id,
+      oldValues: { name: toli.leader_name, phone: oldLeaderPhone },
+      newValues: { name: cleanName, phone: leader?.phone ?? null },
+    });
+    return res.json({
+      toli: updatedToli,
+      leader,
+      user: linkedUser
+        ? {
+            id: linkedUser.id,
+            name: cleanName,
+            email: linkedUser.email,
+            phone: cleanPhone !== undefined ? cleanPhone : linkedUser.phone,
+          }
+        : null,
+    });
   })
 );
 

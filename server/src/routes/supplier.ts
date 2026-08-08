@@ -6,6 +6,7 @@ import dropsRouter from "./supplier/drops.js";
 import workEntriesRouter from "./supplier/workEntries.js";
 import summaryRouter from "./supplier/summary.js";
 import paymentsRouter from "./supplier/payments.js";
+import advancesRouter from "./supplier/advances.js";
 import dashboardRouter from "./supplier/dashboard.js";
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use(dropsRouter);
 router.use(workEntriesRouter);
 router.use(summaryRouter);
 router.use(paymentsRouter);
+router.use(advancesRouter);
 router.use(dashboardRouter);
 
 export default router;

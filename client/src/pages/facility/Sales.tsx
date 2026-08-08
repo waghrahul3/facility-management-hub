@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   EmptyState,
+  ListFilters,
   LoadingScreen,
   Money,
   PageHeader,
@@ -26,13 +27,17 @@ export default function FacilitySalesPage() {
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [orderPage, setOrderPage] = useState(1);
   const [orderTotal, setOrderTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
 
   const load = useCallback(() => {
     if (!fid) return;
     Promise.all([
-      api<{ orders: OrderRow[]; total: number }>(`/sales/orders?page=${orderPage}&pageSize=${PAGE_SIZE}`).catch(() => ({ orders: [] as OrderRow[], total: 0 })),
+      api<{ orders: OrderRow[]; total: number }>(
+        `/sales/orders?page=${orderPage}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+      ).catch(() => ({ orders: [] as OrderRow[], total: 0 })),
       api<SalesSummary>("/sales/summary").catch(() => null),
     ]).then(([o, s]) => {
       setOrders(o.orders);
@@ -42,7 +47,7 @@ export default function FacilitySalesPage() {
       }
       setSummary(s);
     });
-  }, [fid, orderPage]);
+  }, [fid, orderPage, q, status]);
 
   useEffect(load, [load]);
 
@@ -101,13 +106,39 @@ export default function FacilitySalesPage() {
         </div>
       )}
 
+      <div className="mb-4">
+        <ListFilters
+          search={q}
+          onSearch={(v) => {
+            setQ(v);
+            setOrderPage(1);
+          }}
+          status={status}
+          onStatus={(v) => {
+            setStatus(v);
+            setOrderPage(1);
+          }}
+          statusOptions={[
+            { value: "PENDING", label: t("Pending") },
+            { value: "PARTIALLY_DISPATCHED", label: t("Partial") },
+            { value: "COMPLETED", label: t("Completed") },
+            { value: "CANCELLED", label: t("Cancelled") },
+          ]}
+          searchPlaceholder={t("Search order # or buyer…")}
+        />
+      </div>
+
       {orders.length === 0 ? (
         <Card>
-          <EmptyState
-            icon="📦"
-            title={t("No orders for this facility")}
-            hint={t("When the company records a buyer order for your facility, it appears here to fill")}
-          />
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No orders match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState
+              icon="📦"
+              title={t("No orders for this facility")}
+              hint={t("When the company records a buyer order for your facility, it appears here to fill")}
+            />
+          )}
         </Card>
       ) : (
         <Card>

@@ -37,6 +37,11 @@
   --color-field-800: #1e293b;
   --color-field-900: #0f172a;
   --color-field-950: #020617;
+
+  /* Shared elevation + ring tokens used by components below */
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.05);
+  --shadow-card-hover: 0 4px 12px -2px rgb(15 23 42 / 0.1), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  --shadow-pop: 0 12px 32px -8px rgb(15 23 42 / 0.18), 0 4px 12px -4px rgb(15 23 42 / 0.1);
 }
 
 html,
@@ -45,8 +50,29 @@ body,
   height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   @apply bg-field-50 text-field-900 font-sans antialiased;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible, consistent focus indicator across the whole app */
+:focus-visible {
+  outline: 2px solid var(--color-onion-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Matching brand-colored text selection */
+::selection {
+  background: rgb(22 163 74 / 0.22);
+  color: var(--color-field-900);
 }
 
 /* Subtle paper texture for the landing/auth areas */
@@ -63,16 +89,19 @@ body {
   background-image: linear-gradient(135deg, #052e16 0%, #14532d 58%, #166534 100%);
 }
 
+/* Shared card surface — clean, layered, with a gentle lift on hover */
 .card-surface {
-  @apply bg-white rounded-2xl border border-field-200 shadow-sm;
+  @apply bg-white rounded-2xl border border-field-200;
+  box-shadow: var(--shadow-card);
   transition:
     box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .card-surface:hover {
-  box-shadow: 0 12px 32px -16px rgb(2 6 23 / 0.14);
-  border-color: rgb(203 213 225 / 0.9);
+  box-shadow: var(--shadow-card-hover);
+  border-color: rgb(203 213 225 / 0.95);
 }
 
 /* Motion */
@@ -113,6 +142,16 @@ body {
     opacity: 0.3;
   }
 }
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
 .animate-fade-up {
   animation: fade-up 0.4s ease-out both;
@@ -126,13 +165,34 @@ body {
 .animate-pulse-soft {
   animation: pulse-soft 1.8s ease-in-out infinite;
 }
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Slim, theme-aware scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
   @apply bg-field-300 rounded-full;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-field-400;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -145,4 +205,50 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Device support helpers
+ * -------------------------------------------------------------------------- */
+
+/* Respect notched phones (bottom nav, modals, sticky headers) */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Guarantee ≥44px touch targets for the mobile bottom nav items */
+.touch-target {
+  min-height: 44px;
+}
+
+/* --------------------------------------------------------------------------
+ * Print — the printable supplier invoice. When printing, everything except
+ * the .invoice-print document is hidden, and the overlay chrome disappears.
+ * -------------------------------------------------------------------------- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .invoice-print,
+  .invoice-print * {
+    visibility: visible;
+  }
+  .invoice-print {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .invoice-print .print\:hidden {
+    display: none !important;
+  }
+  .invoice-print > div:last-child {
+    overflow: visible !important;
+  }
 }

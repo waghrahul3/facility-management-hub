@@ -3,11 +3,15 @@ import type { ReactNode } from "react";
 import { api, clearSession, getStoredUser, setSession } from "./api";
 import type { AuthUser, TokenPair } from "./api";
 
+const USER_KEY = "ofc_user";
+
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (emailOrPhone: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  /** Replace the in-memory + stored user profile (e.g. after a profile edit). */
+  updateUser: (u: AuthUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -26,6 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.user;
   }, []);
 
+  const updateUser = useCallback((u: AuthUser) => {
+    setUser(u);
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(u));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api("/auth/logout", { method: "POST", body: {}, retry: false });
@@ -38,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, logout }),
-    [user, loading, login, logout]
+    () => ({ user, loading, login, logout, updateUser }),
+    [user, loading, login, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

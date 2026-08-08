@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, updateCompanyAdmin } from "../../lib/api";
 import { useI18n } from "../../i18n";
 import {
   Badge,
@@ -17,6 +17,8 @@ import {
   Table,
   Td,
 } from "../../components/ui";
+import ResetPasswordModal from "../../components/ResetPasswordModal";
+import EditUserModal from "../../components/EditUserModal";
 
 interface CompanyAdmin {
   id: string;
@@ -43,6 +45,9 @@ export default function CompanyAdminsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", companyId: "" });
   const [busy, setBusy] = useState(false);
+  const [resetTarget, setResetTarget] = useState<CompanyAdmin | null>(null);
+  const [editTarget, setEditTarget] = useState<CompanyAdmin | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
 
   const load = useCallback(() => {
     api<{ companyAdmins: CompanyAdmin[]; total: number }>(`/super-admin/company-admins?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
@@ -82,6 +87,22 @@ export default function CompanyAdminsPage() {
     }
   }
 
+  async function handleEdit(values: { name: string; phone: string; email: string }) {
+    if (!editTarget) return;
+    setEditBusy(true);
+    try {
+      await updateCompanyAdmin(editTarget.id, {
+        name: values.name,
+        phone: values.phone.trim() || null,
+        email: values.email,
+      });
+      setEditTarget(null);
+      load();
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -96,7 +117,7 @@ export default function CompanyAdminsPage() {
         <Card><EmptyState title={t("No company admins yet")} hint={t("Create an admin for a company")} /></Card>
       ) : (
         <Card>
-          <Table head={[t("Name"), t("Email"), t("Phone"), t("Company"), t("Role")]} empty={null}>
+          <Table head={[t("Name"), t("Email"), t("Phone"), t("Company"), t("Role"), t("Actions")]} empty={null}>
             {admins.map((a) => (
               <tr key={a.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{a.name}</Td>
@@ -110,6 +131,16 @@ export default function CompanyAdminsPage() {
                   )}
                 </Td>
                 <Td><Badge tone="violet">COMPANY ADMIN</Badge></Td>
+                <Td>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => setEditTarget(a)}>
+                      {t("Edit")}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setResetTarget(a)}>
+                      {t("Reset password")}
+                    </Button>
+                  </div>
+                </Td>
               </tr>
             ))}
           </Table>
@@ -122,6 +153,22 @@ export default function CompanyAdminsPage() {
           />
         </Card>
       )}
+
+      <ResetPasswordModal
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        userId={resetTarget?.id ?? null}
+        userName={resetTarget?.name}
+      />
+
+      <EditUserModal
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        title={t("Edit company admin")}
+        initial={editTarget ? { name: editTarget.name, phone: editTarget.phone, email: editTarget.email } : null}
+        saving={editBusy}
+        onSave={handleEdit}
+      />
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t("New company admin")}>
         <form onSubmit={handleSubmit} className="space-y-4">

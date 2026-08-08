@@ -1,53 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, updateSupplier } from "../../lib/api";
 import { useI18n } from "../../i18n";
 import {
   Badge,
   Button,
   Card,
   EmptyState,
-  Field,
-  Input,
   LoadingScreen,
-  Modal,
   PageHeader,
   Pagination,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
-
-interface SupplierRow {
-  supplier: {
-    id: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    contact_person: string | null;
-    address: string | null;
-    city: string | null;
-    status: "PENDING" | "ACTIVE";
-    facility_id: string | null;
-  };
-  facility: { id: string; name: string } | null;
-  user: { id: string; name: string; email: string } | null;
-}
-
-const PAGE_SIZE = 50;
-
-const emptyForm = {
-  name: "",
-  email: "",
-  phone: "",
-  contact_person: "",
-  address: "",
-  city: "",
-  create_login: false,
-  password: "",
-};
-
-const emptyLoginForm = { email: "", password: "" };
+import SupplierFormModal from "./suppliers/SupplierFormModal";
+import GenerateLoginModal from "./suppliers/GenerateLoginModal";
+import ResetPasswordModal from "../../components/ResetPasswordModal";
+import {
+  PAGE_SIZE,
+  type LoginFormValues,
+  type SupplierFormValues,
+  type SupplierRow,
+} from "./suppliers/types";
 
 export default function SuppliersPage() {
   const { t } = useI18n();
@@ -55,14 +29,18 @@ export default function SuppliersPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   // Generate-login (activation) state
   const [loginTarget, setLoginTarget] = useState<SupplierRow["supplier"] | null>(null);
-  const [loginForm, setLoginForm] = useState(emptyLoginForm);
   const [loginBusy, setLoginBusy] = useState(false);
+
+  // Reset-password state (only for suppliers that already have a login)
+  const [resetTarget, setResetTarget] = useState<SupplierRow["user"] | null>(null);
+  // Edit-supplier state
+  const [editTarget, setEditTarget] = useState<SupplierRow | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
 
   const load = useCallback(() => {
     api<{ suppliers: SupplierRow[]; total: number }>(`/super-admin/suppliers?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
@@ -76,32 +54,30 @@ export default function SuppliersPage() {
 
   useEffect(load, [load]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(values: SupplierFormValues) {
     setBusy(true);
     setNotice(null);
     try {
       await post("/super-admin/suppliers", {
-        name: form.name,
-        email: form.email || null,
-        phone: form.phone || null,
-        contact_person: form.contact_person || null,
-        address: form.address || null,
-        city: form.city || null,
-        create_login: form.create_login,
-        password: form.create_login ? form.password : undefined,
+        name: values.name,
+        email: values.email || null,
+        phone: values.phone || null,
+        contact_person: values.contact_person || null,
+        address: values.address || null,
+        city: values.city || null,
+        create_login: values.create_login,
+        password: values.create_login ? values.password : undefined,
       });
-      const emailForLogin = form.email.trim().toLowerCase();
+      const emailForLogin = values.email.trim().toLowerCase();
       setNotice(
-        form.create_login
+        values.create_login
           ? {
               kind: "success",
-              text: t("Supplier “{name}” created with a login for {email}.\n\nPassword: {password} — share these with the supplier.", { name: form.name, email: emailForLogin, password: form.password }),
+              text: t("Supplier “{name}” created with a login for {email}.\n\nPassword: {password} — share these with the supplier.", { name: values.name, email: emailForLogin, password: values.password }),
             }
-          : { kind: "success", text: t("Supplier “{name}” created.", { name: form.name }) }
+          : { kind: "success", text: t("Supplier “{name}” created.", { name: values.name }) }
       );
       setShowModal(false);
-      setForm(emptyForm);
       load();
     } catch (err) {
       setNotice({
@@ -115,29 +91,52 @@ export default function SuppliersPage() {
 
   function openLogin(target: SupplierRow["supplier"]) {
     setLoginTarget(target);
-    setLoginForm({ email: target.email ?? "", password: "" });
   }
 
-  async function handleGenerateLogin(e: FormEvent) {
-    e.preventDefault();
+  async function handleUpdateSupplier(values: SupplierFormValues) {
+    if (!editTarget) return;
+    setEditBusy(true);
+    setNotice(null);
+    try {
+      await updateSupplier(editTarget.supplier.id, {
+        name: values.name,
+        email: values.email.trim() || null,
+        phone: values.phone.trim() || null,
+        contact_person: values.contact_person.trim() || null,
+        address: values.address.trim() || null,
+        city: values.city.trim() || null,
+      });
+      setNotice({ kind: "success", text: t("Supplier “{name}” updated.", { name: values.name }) });
+      setEditTarget(null);
+      load();
+    } catch (err) {
+      setNotice({
+        kind: "error",
+        text: err instanceof Error ? err.message : t("Failed to update supplier"),
+      });
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function handleGenerateLogin(values: LoginFormValues) {
     if (!loginTarget) return;
     setLoginBusy(true);
     setNotice(null);
     try {
       await post(`/super-admin/suppliers/${loginTarget.id}/generate-login`, {
-        email: loginForm.email,
-        password: loginForm.password,
+        email: values.email,
+        password: values.password,
       });
       setNotice({
         kind: "success",
         text: t("Login generated for “{name}”.\n\nEmail: {email}\nPassword: {password}\n\nShare these with the supplier — they are now active and selectable at every facility.", {
           name: loginTarget.name,
-          email: loginForm.email.trim().toLowerCase(),
-          password: loginForm.password,
+          email: values.email.trim().toLowerCase(),
+          password: values.password,
         }),
       });
       setLoginTarget(null);
-      setLoginForm(emptyLoginForm);
       load();
     } catch (err) {
       setNotice({
@@ -190,7 +189,7 @@ export default function SuppliersPage() {
         <Card><EmptyState title={t("No suppliers yet")} hint={t("Register the first supplier")} /></Card>
       ) : (
         <Card>
-          <Table head={[t("Supplier"), t("Contact"), t("Phone"), t("Added by"), t("Status"), t("Login")]} empty={null}>
+          <Table head={[t("Supplier"), t("Contact"), t("Phone"), t("Added by"), t("Status"), t("Login"), t("Actions")]} empty={null}>
             {suppliers.map((r) => (
               <tr key={r.supplier.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{r.supplier.name}</Td>
@@ -220,8 +219,13 @@ export default function SuppliersPage() {
                 </Td>
                 <Td>
                   {r.user ? (
-                    <div className="flex flex-col items-start gap-0.5">
-                      <Badge tone="green">{t("Has login")}</Badge>
+                    <div className="flex flex-col items-start gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <Badge tone="green">{t("Has login")}</Badge>
+                        <Button size="sm" variant="secondary" onClick={() => setResetTarget(r.user)}>
+                          {t("Reset password")}
+                        </Button>
+                      </div>
                       <span className="text-[11px] text-field-400">{r.user.email}</span>
                     </div>
                   ) : (
@@ -229,6 +233,11 @@ export default function SuppliersPage() {
                       {t("Generate login")}
                     </Button>
                   )}
+                </Td>
+                <Td>
+                  <Button size="sm" variant="secondary" onClick={() => setEditTarget(r)}>
+                    {t("Edit")}
+                  </Button>
                 </Td>
               </tr>
             ))}
@@ -243,95 +252,46 @@ export default function SuppliersPage() {
         </Card>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title={t("New supplier")}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-            {t("Globally registered suppliers are active immediately and selectable at every facility.")}
-          </div>
-          <Field label={t("Supplier name")}>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("Email")}>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </Field>
-            <Field label={t("Phone")}>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </Field>
-          </div>
-          <Field label={t("Contact person")}>
-            <Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("Address")}>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            </Field>
-            <Field label={t("City")}>
-              <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-            </Field>
-          </div>
+      <SupplierFormModal
+        open={showModal}
+        saving={busy}
+        onClose={() => setShowModal(false)}
+        onSave={handleSubmit}
+      />
 
-          <label className="flex items-center gap-2 text-sm text-field-700">
-            <input
-              type="checkbox"
-              checked={form.create_login}
-              onChange={(e) => setForm({ ...form, create_login: e.target.checked })}
-              className="h-4 w-4 rounded border-field-300 text-onion-700 focus:ring-onion-600"
-            />
-            {t("Create a supplier login account")}
-          </label>
+      <SupplierFormModal
+        open={editTarget !== null}
+        saving={editBusy}
+        onClose={() => setEditTarget(null)}
+        onSave={handleUpdateSupplier}
+        editing={
+          editTarget
+            ? {
+                name: editTarget.supplier.name,
+                email: editTarget.supplier.email,
+                phone: editTarget.supplier.phone,
+                contact_person: editTarget.supplier.contact_person,
+                address: editTarget.supplier.address,
+                city: editTarget.supplier.city,
+              }
+            : null
+        }
+      />
 
-          {form.create_login && (
-            <Field label={t("Login password")} hint={t("The supplier signs in with the email above and this password")}>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </Field>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
-            <Button type="submit" loading={busy}>{t("Create supplier")}</Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
+      <GenerateLoginModal
         open={loginTarget !== null}
+        supplier={loginTarget}
+        saving={loginBusy}
         onClose={() => setLoginTarget(null)}
-        title={loginTarget ? t("Generate login — {name}", { name: loginTarget.name }) : t("Generate login")}
-      >
-        <form onSubmit={handleGenerateLogin} className="space-y-4">
-          <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {loginTarget?.facility_id
-              ? t("Registered by a facility and awaiting activation. Generating the login makes this supplier ACTIVE and selectable at every facility.")
-              : t("This supplier has no login yet. Generating one also marks them ACTIVE.")}
-          </div>
-          <Field label={t("Login email")}>
-            <Input
-              type="email"
-              value={loginForm.email}
-              onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-              required
-            />
-          </Field>
-          <Field label={t("Password")} hint={t("The supplier signs in with this password")}>
-            <Input
-              type="password"
-              value={loginForm.password}
-              onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              required
-            />
-          </Field>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setLoginTarget(null)}>{t("Cancel")}</Button>
-            <Button type="submit" loading={loginBusy}>{t("Generate & activate")}</Button>
-          </div>
-        </form>
-      </Modal>
+        onSave={handleGenerateLogin}
+      />
+
+      <ResetPasswordModal
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        userId={resetTarget?.id ?? null}
+        userName={resetTarget?.name}
+      />
     </div>
   );
 }

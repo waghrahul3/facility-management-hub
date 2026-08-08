@@ -97,6 +97,22 @@ export const refreshTokens = pgTable("refresh_tokens", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Password reset tokens — one-time, short-lived, hashed at rest.
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token_hash: text("token_hash").notNull().unique(),
+    expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
+    used_at: timestamp("used_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("password_reset_tokens_user_idx").on(t.user_id)]
+);
+
 // ---------------------------------------------------------------------------
 // Companies (trading companies; a company owns one or more facilities)
 // ---------------------------------------------------------------------------
@@ -373,6 +389,10 @@ export const supplierPayments = pgTable(
     total_drops: integer("total_drops").default(0).notNull(),
     total_rent_charges: integer("total_rent_charges").default(0).notNull(),
     net_payment: integer("net_payment").default(0).notNull(),
+    // Advance recovered from this supplier during this week's settlement
+    advance_deducted: integer("advance_deducted").default(0).notNull(),
+    // Supplier's outstanding advance balance before this week's deduction
+    advance_balance_before: integer("advance_balance_before").default(0).notNull(),
     collection_date: timestamp("collection_date", { withTimezone: true }),
     collection_status: supplierPaymentStatusEnum("collection_status")
       .default("PENDING")
@@ -389,6 +409,36 @@ export const supplierPayments = pgTable(
       t.supplier_id,
       t.week_start_date
     ),
+  ]
+);
+
+// Cash advances given to a supplier before work is settled. The outstanding
+// balance is recovered manually by the facility admin each week: the admin
+// deducts an amount from the supplier's net payment when processing Sunday
+// payments, which is recorded as supplier_payments.advance_deducted.
+export const supplierAdvances = pgTable(
+  "supplier_advances",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    supplier_id: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id, { onDelete: "cascade" }),
+    facility_id: uuid("facility_id")
+      .notNull()
+      .references(() => facilities.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    advance_date: timestamp("advance_date", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    payment_method: paymentMethodEnum("payment_method").default("CASH").notNull(),
+    notes: text("notes"),
+    recorded_by: uuid("recorded_by").references(() => users.id),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("supplier_advances_supplier_idx").on(t.supplier_id),
+    index("supplier_advances_facility_idx").on(t.facility_id),
   ]
 );
 
@@ -446,6 +496,7 @@ export const auditLogs = pgTable(
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type Company = typeof companies.$inferSelect;
 export type Facility = typeof facilities.$inferSelect;
 export type BagSize = typeof bagSizes.$inferSelect;
@@ -458,6 +509,7 @@ export type WorkEntry = typeof workEntries.$inferSelect;
 export type WeeklyWorkSummary = typeof weeklyWorkSummaries.$inferSelect;
 export type SupplierPayment = typeof supplierPayments.$inferSelect;
 export type SupplierPaymentDistribution = typeof supplierPaymentDistributions.$inferSelect;
+export type SupplierAdvance = typeof supplierAdvances.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
 // ---------------------------------------------------------------------------

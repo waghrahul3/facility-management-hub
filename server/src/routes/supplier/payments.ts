@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { supplierPayments } from "../../db/schema.js";
+import { facilities, supplierPayments } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound, unauthorized } from "../../lib/errors.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
@@ -94,11 +94,27 @@ router.post(
 router.get(
   "/payment-history",
   asyncHandler(async (req, res) => {
-    const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
-    const where = eq(supplierPayments.supplier_id, mySupplierId(req));
+    const query = req.query as Record<string, unknown>;
+    const { limit, offset, page, pageSize } = parsePage(query);
+    const search = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
+    const where = and(
+      eq(supplierPayments.supplier_id, mySupplierId(req)),
+      search ? ilike(sql`${supplierPayments.week_start_date}::text`, `%${search}%`) : undefined,
+      status
+        ? eq(
+            supplierPayments.collection_status,
+            status as "PENDING" | "COLLECTED_FROM_FACILITY" | "DISTRIBUTED_TO_WORKERS"
+          )
+        : undefined
+    );
     const payments = await db
-      .select()
+      .select({
+        payment: supplierPayments,
+        facility: { id: facilities.id, name: facilities.name },
+      })
       .from(supplierPayments)
+      .innerJoin(facilities, eq(facilities.id, supplierPayments.facility_id))
       .where(where)
       .orderBy(desc(supplierPayments.week_start_date))
       .limit(limit)
@@ -106,8 +122,9 @@ router.get(
 
     const withDistributions = await Promise.all(
       payments.map(async (p) => ({
-        ...p,
-        distributions: await getPaymentDistributions(p.id),
+        ...p.payment,
+        facility: p.facility,
+        distributions: await getPaymentDistributions(p.payment.id),
       }))
     );
     const [totalRow] = await db.select({ value: count() }).from(supplierPayments).where(where);

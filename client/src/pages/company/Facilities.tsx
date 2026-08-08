@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { api, post, put, del } from "../../lib/api";
+import { api, post, put, del, updateCompanyFacilityAdmin } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../i18n";
 import { fmtDate } from "../../lib/format";
@@ -10,48 +9,24 @@ import {
   Button,
   Card,
   EmptyState,
-  Field,
-  Input,
+  ListFilters,
   LoadingScreen,
-  Modal,
   PageHeader,
   Pagination,
-  SearchableSelect,
   Table,
   Td,
 } from "../../components/ui";
-
-interface FacilityRow {
-  facility: {
-    id: string;
-    name: string;
-    location: string;
-    city: string | null;
-    capacity: number | null;
-    is_active: boolean;
-  };
-  admin: { id: string; name: string; email: string } | null;
-}
-
-interface FacilityAdminRow {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  facility_id: string | null;
-  created_at: string;
-}
-
-const ADMINS_PAGE_SIZE = 25;
-
-const emptyFacilityForm = {
-  name: "",
-  location: "",
-  city: "",
-  capacity: 0,
-};
-
-const emptyAdminForm = { name: "", email: "", phone: "", password: "" };
+import FacilityModal from "./facilities/FacilityModal";
+import AdminModal from "./facilities/AdminModal";
+import ResetPasswordModal from "../../components/ResetPasswordModal";
+import EditUserModal from "../../components/EditUserModal";
+import {
+  ADMINS_PAGE_SIZE,
+  type AdminSaveValues,
+  type FacilityAdminRow,
+  type FacilityRow,
+  type FacilitySaveValues,
+} from "./facilities/types";
 
 export default function CompanyFacilitiesPage() {
   const { user } = useAuth();
@@ -61,26 +36,30 @@ export default function CompanyFacilitiesPage() {
   const [admins, setAdmins] = useState<FacilityAdminRow[]>([]);
   const [adminPage, setAdminPage] = useState(1);
   const [adminTotal, setAdminTotal] = useState(0);
+  const [adminQ, setAdminQ] = useState("");
+  const [adminFacility, setAdminFacility] = useState("");
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   // Add / edit facility
   const [showFacilityModal, setShowFacilityModal] = useState(false);
   const [editingFacility, setEditingFacility] = useState<FacilityRow["facility"] | null>(null);
-  const [facilityForm, setFacilityForm] = useState(emptyFacilityForm);
-  const [adminForm, setAdminForm] = useState(emptyAdminForm);
   const [busy, setBusy] = useState(false);
 
   // Add admin
   const [showAdminModal, setShowAdminModal] = useState(false);
-  const [adminFacilityId, setAdminFacilityId] = useState("");
-  const [addAdminForm, setAddAdminForm] = useState(emptyAdminForm);
+  const [presetFacilityId, setPresetFacilityId] = useState("");
   const [adminBusy, setAdminBusy] = useState(false);
+  // Reset a facility admin's password
+  const [resetTarget, setResetTarget] = useState<FacilityAdminRow | null>(null);
+  // Edit a facility admin's profile
+  const [editTarget, setEditTarget] = useState<FacilityAdminRow | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!cid) return;
     api<{ facilities: FacilityRow[] }>(`/company/${cid}/facilities`).then((r) => setRows(r.facilities));
     api<{ facilityAdmins: FacilityAdminRow[]; total: number }>(
-      `/company/${cid}/facility-admins?page=${adminPage}&pageSize=${ADMINS_PAGE_SIZE}`
+      `/company/${cid}/facility-admins?page=${adminPage}&pageSize=${ADMINS_PAGE_SIZE}&q=${encodeURIComponent(adminQ)}&facilityId=${adminFacility}`
     ).then((r) => {
       setAdmins(r.facilityAdmins);
       setAdminTotal(r.total);
@@ -88,56 +67,43 @@ export default function CompanyFacilitiesPage() {
         setAdminPage(Math.max(1, Math.ceil(r.total / ADMINS_PAGE_SIZE)));
       }
     });
-  }, [cid, adminPage]);
+  }, [cid, adminPage, adminQ, adminFacility]);
 
   useEffect(load, [load]);
 
   function openAddFacility() {
     setEditingFacility(null);
-    setFacilityForm(emptyFacilityForm);
-    setAdminForm(emptyAdminForm);
     setShowFacilityModal(true);
   }
 
   function openEditFacility(f: FacilityRow["facility"]) {
     setEditingFacility(f);
-    setFacilityForm({
-      name: f.name,
-      location: f.location,
-      city: f.city ?? "",
-      capacity: f.capacity ?? 0,
-    });
-    setAdminForm(emptyAdminForm);
     setShowFacilityModal(true);
   }
 
-  async function saveFacility(e: FormEvent) {
-    e.preventDefault();
+  async function saveFacility(values: FacilitySaveValues) {
     setBusy(true);
     setNotice(null);
     try {
       const body = {
-        name: facilityForm.name,
-        location: facilityForm.location,
-        city: facilityForm.city || null,
-        capacity: Number(facilityForm.capacity) || 0,
+        name: values.name,
+        location: values.location,
+        city: values.city,
+        capacity: values.capacity,
       };
       if (editingFacility) {
         await put(`/company/${cid}/facilities/${editingFacility.id}`, body);
-        setNotice({ kind: "success", text: t("Facility “{name}” updated.", { name: facilityForm.name }) });
+        setNotice({ kind: "success", text: t("Facility “{name}” updated.", { name: values.name }) });
       } else {
         await post(`/company/${cid}/facilities`, {
           ...body,
-          admin:
-            adminForm.name || adminForm.email || adminForm.password
-              ? adminForm
-              : undefined,
+          admin: values.admin ?? undefined,
         });
         setNotice({
           kind: "success",
-          text: adminForm.name
-            ? t("Facility “{name}” onboarded with admin {email}.", { name: facilityForm.name, email: adminForm.email })
-            : t("Facility “{name}” onboarded.", { name: facilityForm.name }),
+          text: values.admin?.name
+            ? t("Facility “{name}” onboarded with admin {email}.", { name: values.name, email: values.admin.email })
+            : t("Facility “{name}” onboarded.", { name: values.name }),
         });
       }
       setShowFacilityModal(false);
@@ -162,24 +128,40 @@ export default function CompanyFacilitiesPage() {
   }
 
   function openAddAdmin(facilityId: string) {
-    setAdminFacilityId(facilityId);
-    setAddAdminForm(emptyAdminForm);
+    setPresetFacilityId(facilityId);
     setShowAdminModal(true);
   }
 
-  async function saveAdmin(e: FormEvent) {
-    e.preventDefault();
+  async function handleEditAdmin(values: { name: string; phone: string; email: string }) {
+    if (!editTarget || !cid) return;
+    setEditBusy(true);
+    try {
+      await updateCompanyFacilityAdmin(cid, editTarget.id, {
+        name: values.name,
+        phone: values.phone.trim() || null,
+        email: values.email,
+      });
+      setEditTarget(null);
+      load();
+    } catch (err) {
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to update admin") });
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function saveAdmin(values: AdminSaveValues) {
     setAdminBusy(true);
     setNotice(null);
     try {
       await post(`/company/${cid}/facility-admins`, {
-        name: addAdminForm.name,
-        email: addAdminForm.email,
-        phone: addAdminForm.phone || null,
-        password: addAdminForm.password,
-        facilityId: adminFacilityId,
+        name: values.name,
+        email: values.email,
+        phone: values.phone || null,
+        password: values.password,
+        facilityId: values.facilityId,
       });
-      setNotice({ kind: "success", text: t("Facility admin {email} created.", { email: addAdminForm.email }) });
+      setNotice({ kind: "success", text: t("Facility admin {email} created.", { email: values.email }) });
       setShowAdminModal(false);
       load();
     } catch (err) {
@@ -198,7 +180,13 @@ export default function CompanyFacilitiesPage() {
         subtitle={t("Onboard your facilities and facility admins, then run each facility directly.")}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowAdminModal(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPresetFacilityId("");
+                setShowAdminModal(true);
+              }}
+            >
               {t("+ Add facility admin")}
             </Button>
             <Button onClick={openAddFacility}>{t("+ Onboard facility")}</Button>
@@ -277,11 +265,32 @@ export default function CompanyFacilitiesPage() {
       {/* Facility admins */}
       <div className="mt-6">
         <Card title={t("Facility admins")} subtitle={t("{n} admins across your facilities", { n: adminTotal })}>
+          <div className="mb-3">
+            <ListFilters
+              search={adminQ}
+              onSearch={(v) => {
+                setAdminQ(v);
+                setAdminPage(1);
+              }}
+              status={adminFacility}
+              onStatus={(v) => {
+                setAdminFacility(v);
+                setAdminPage(1);
+              }}
+              statusOptions={rows.map((r) => ({ value: r.facility.id, label: r.facility.name }))}
+              searchPlaceholder={t("Search admin name or email…")}
+              allLabel={t("All facilities")}
+            />
+          </div>
           {admins.length === 0 ? (
-            <EmptyState title={t("No facility admins yet")} hint={t("Add admins from a facility row or the header button")} />
+            adminQ || adminFacility ? (
+              <EmptyState icon="🔍" title={t("No admins match")} hint={t("Try a different search or facility filter")} />
+            ) : (
+              <EmptyState title={t("No facility admins yet")} hint={t("Add admins from a facility row or the header button")} />
+            )
           ) : (
             <>
-              <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Created")]} empty={null}>
+              <Table head={[t("Name"), t("Email"), t("Phone"), t("Facility"), t("Created"), t("Actions")]} empty={null}>
                 {admins.map((a) => (
                   <tr key={a.id} className="hover:bg-field-50/50">
                     <Td className="font-semibold text-field-900">{a.name}</Td>
@@ -289,6 +298,16 @@ export default function CompanyFacilitiesPage() {
                     <Td>{a.phone ?? "—"}</Td>
                     <Td>{rows.find((r) => r.facility.id === a.facility_id)?.facility.name ?? "—"}</Td>
                     <Td className="text-xs text-field-400">{fmtDate(a.created_at)}</Td>
+                    <Td>
+                      <div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="secondary" onClick={() => setEditTarget(a)}>
+                          {t("Edit")}
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => setResetTarget(a)}>
+                          {t("Reset password")}
+                        </Button>
+                      </div>
+                    </Td>
                   </tr>
                 ))}
               </Table>
@@ -305,148 +324,41 @@ export default function CompanyFacilitiesPage() {
       </div>
 
       {/* Onboard / edit facility modal */}
-      <Modal
+      <FacilityModal
         open={showFacilityModal}
+        editing={editingFacility}
+        saving={busy}
         onClose={() => setShowFacilityModal(false)}
-        title={editingFacility ? t("Edit {name}", { name: editingFacility.name }) : t("Onboard facility")}
-      >
-        <form onSubmit={saveFacility} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label={t("Facility name")}>
-              <Input
-                value={facilityForm.name}
-                onChange={(e) => setFacilityForm({ ...facilityForm, name: e.target.value })}
-                placeholder={t("e.g. Nashik Cold Store 1")}
-                required
-              />
-            </Field>
-            <Field label={t("Location")}>
-              <Input
-                value={facilityForm.location}
-                onChange={(e) => setFacilityForm({ ...facilityForm, location: e.target.value })}
-                placeholder={t("e.g. Pimpalgaon, NH-60")}
-                required
-              />
-            </Field>
-            <Field label={t("City")}>
-              <Input
-                value={facilityForm.city}
-                onChange={(e) => setFacilityForm({ ...facilityForm, city: e.target.value })}
-              />
-            </Field>
-            <Field label={t("Capacity (workers)")}>
-              <Input
-                type="number"
-                min={0}
-                value={facilityForm.capacity}
-                onChange={(e) => setFacilityForm({ ...facilityForm, capacity: Number(e.target.value) })}
-              />
-            </Field>
-          </div>
+        onSave={saveFacility}
+      />
 
-          {!editingFacility && (
-            <>
-              <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs text-onion-800">
-                {t("Optional: create this facility's admin login right away.")}
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label={t("Admin name")}>
-                  <Input
-                    value={adminForm.name}
-                    onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
-                  />
-                </Field>
-                <Field label={t("Admin email")}>
-                  <Input
-                    type="email"
-                    value={adminForm.email}
-                    onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                    placeholder="admin@facility.local"
-                  />
-                </Field>
-                <Field label={t("Admin phone")}>
-                  <Input
-                    value={adminForm.phone}
-                    onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
-                  />
-                </Field>
-                <Field label={t("Admin password")} hint={t("Min 8 characters")}>
-                  <Input
-                    type="password"
-                    value={adminForm.password}
-                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                    placeholder="••••••••"
-                  />
-                </Field>
-              </div>
-            </>
-          )}
+      {/* Reset facility admin password */}
+      <ResetPasswordModal
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        userId={resetTarget?.id ?? null}
+        userName={resetTarget?.name}
+      />
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowFacilityModal(false)}>
-              {t("Cancel")}
-            </Button>
-            <Button type="submit" loading={busy}>
-              {editingFacility ? t("Save changes") : t("Onboard facility")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Edit facility admin profile */}
+      <EditUserModal
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        title={t("Edit facility admin")}
+        initial={editTarget ? { name: editTarget.name, phone: editTarget.phone, email: editTarget.email } : null}
+        saving={editBusy}
+        onSave={handleEditAdmin}
+      />
 
       {/* Add facility admin modal */}
-      <Modal open={showAdminModal} onClose={() => setShowAdminModal(false)} title={t("Add facility admin")}>
-        <form onSubmit={saveAdmin} className="space-y-4">
-          <Field label={t("Facility")}>
-            <SearchableSelect
-              value={adminFacilityId}
-              onChange={setAdminFacilityId}
-              options={rows.map((r) => ({ value: r.facility.id, label: r.facility.name }))}
-              placeholder={t("Select facility…")}
-              searchPlaceholder={t("Search facilities…")}
-              required
-            />
-          </Field>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label={t("Name")}>
-              <Input
-                value={addAdminForm.name}
-                onChange={(e) => setAddAdminForm({ ...addAdminForm, name: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label={t("Email")}>
-              <Input
-                type="email"
-                value={addAdminForm.email}
-                onChange={(e) => setAddAdminForm({ ...addAdminForm, email: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label={t("Phone")}>
-              <Input
-                value={addAdminForm.phone}
-                onChange={(e) => setAddAdminForm({ ...addAdminForm, phone: e.target.value })}
-              />
-            </Field>
-            <Field label={t("Password")} hint={t("Min 8 characters")}>
-              <Input
-                type="password"
-                value={addAdminForm.password}
-                onChange={(e) => setAddAdminForm({ ...addAdminForm, password: e.target.value })}
-                required
-              />
-            </Field>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowAdminModal(false)}>
-              {t("Cancel")}
-            </Button>
-            <Button type="submit" loading={adminBusy}>
-              {t("Create admin")}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <AdminModal
+        open={showAdminModal}
+        facilities={rows}
+        initialFacilityId={presetFacilityId}
+        saving={adminBusy}
+        onClose={() => setShowAdminModal(false)}
+        onSave={saveAdmin}
+      />
     </div>
   );
 }

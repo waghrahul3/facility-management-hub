@@ -7,6 +7,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Money,
   PageHeader,
@@ -41,16 +42,20 @@ export default function SupplierWorkEntriesPage() {
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
 
   const load = useCallback(() => {
-    api<{ entries: EntryRow[]; total: number }>(`/supplier/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ entries: EntryRow[]; total: number }>(
+      `/supplier/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+    ).then((r) => {
       setEntries(r.entries);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [weekStart, page]);
+  }, [weekStart, page, q, status]);
 
   useEffect(load, [load]);
 
@@ -75,16 +80,40 @@ export default function SupplierWorkEntriesPage() {
             }}
           />
         </Field>
+        <div className="mt-4">
+          <ListFilters
+            search={q}
+            onSearch={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            status={status}
+            onStatus={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+            statusOptions={[
+              { value: "DRAFT", label: t("Draft") },
+              { value: "APPROVED", label: t("Approved") },
+              { value: "PAID", label: t("Paid") },
+            ]}
+            searchPlaceholder={t("Search toli leader…")}
+          />
+        </div>
       </Card>
 
       {!entries ? (
         <LoadingScreen />
       ) : entries.length === 0 ? (
         <Card>
-          <EmptyState
-            title={t("No work entries for your drops")}
-            hint={t("Work recorded against tolis from your drops will appear here")}
-          />
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No work entries match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState
+              title={t("No work entries for your drops")}
+              hint={t("Work recorded against tolis from your drops will appear here")}
+            />
+          )}
         </Card>
       ) : (
         <>

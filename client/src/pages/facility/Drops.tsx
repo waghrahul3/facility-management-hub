@@ -10,6 +10,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Modal,
   Money,
@@ -57,6 +58,8 @@ export default function DropsPage() {
   const [drops, setDrops] = useState<DropRow[] | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [showModal, setShowModal] = useState(false);
@@ -77,14 +80,16 @@ export default function DropsPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ drops: DropRow[]; total: number }>(`/facility/${fid}/supplier-drops?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ drops: DropRow[]; total: number }>(
+      `/facility/${fid}/supplier-drops?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+    ).then((r) => {
       setDrops(r.drops);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [fid, weekStart, page]);
+  }, [fid, weekStart, page, q, status]);
 
   const loadSuppliers = useCallback(() => {
     if (!fid) return;
@@ -184,12 +189,37 @@ export default function DropsPage() {
             />
           </Field>
         </div>
+        <div className="mt-4">
+          <ListFilters
+            search={q}
+            onSearch={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            status={status}
+            onStatus={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+            statusOptions={[
+              { value: "REGISTERED", label: t("Registered") },
+              { value: "COMPLETED", label: t("Completed") },
+            ]}
+            searchPlaceholder={t("Search suppliers…")}
+          />
+        </div>
       </Card>
 
       {!drops ? (
         <LoadingScreen />
       ) : drops.length === 0 ? (
-        <Card><EmptyState title={t("No drops this week")} hint={t("Register a supplier drop to begin")} /></Card>
+        <Card>
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No drops match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState title={t("No drops this week")} hint={t("Register a supplier drop to begin")} />
+          )}
+        </Card>
       ) : (
         <Card>
           <Table head={[t("Supplier"), t("Date"), t("Workers"), t("Rent / drop"), t("Status")]} empty={null}>

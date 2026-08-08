@@ -1,0 +1,312 @@
+import { useEffect, useState } from "react";
+import { api, downloadReport } from "../lib/api";
+import { useI18n } from "../i18n";
+import { fmtDate } from "../lib/format";
+import { Button, LoadingScreen, StatusBadge } from "./ui";
+
+// ---------------------------------------------------------------------------
+// Printable supplier invoice — one supplier, one week.
+// Rendered inside a .invoice-print wrapper so @media print (in index.css)
+// prints only this document. Also offers PDF / Excel download of the same
+// report (the server scopes the data to the caller's role).
+// ---------------------------------------------------------------------------
+
+interface InvoiceToliLine {
+  leader: string;
+  bags: number;
+  workAmount: number;
+  dayCharge: number;
+  earnings: number;
+  status: string;
+}
+
+interface InvoiceDrop {
+  id: string;
+  dropDate: string;
+  workers: number;
+  rent: number;
+  status: string;
+}
+
+interface InvoiceData {
+  title: string;
+  subtitle: string;
+  generatedAt: string;
+  period: { from: string | null; to: string | null };
+  totals: Record<string, number>;
+  meta: {
+    invoiceNo: string;
+    supplier: {
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+      address: string | null;
+      city: string | null;
+    };
+    facility: { id: string; name: string; location: string | null; city: string | null };
+    weekStart: string;
+    weekEnd: string;
+    toliLines: InvoiceToliLine[];
+    drops: InvoiceDrop[];
+    payment: {
+      status: string;
+      method: string | null;
+      collectedAt: string | null;
+      net: number;
+    } | null;
+  };
+}
+
+export default function SupplierInvoiceModal({
+  open,
+  onClose,
+  supplierId,
+  facilityId,
+  weekStart,
+}: {
+  open: boolean;
+  onClose: () => void;
+  supplierId: string;
+  facilityId?: string | null;
+  weekStart: string;
+}) {
+  const { t } = useI18n();
+  const [data, setData] = useState<InvoiceData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"pdf" | "excel" | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setData(null);
+    setError(null);
+    const params = new URLSearchParams();
+    params.set("supplierId", supplierId);
+    if (facilityId) params.set("facilityId", facilityId);
+    params.set("from", weekStart);
+    api<InvoiceData>(`/reports/supplier-invoice?${params.toString()}`)
+      .then(setData)
+      .catch((err: Error) => setError(err.message));
+  }, [open, supplierId, facilityId, weekStart]);
+
+  if (!open) return null;
+
+  async function download(format: "pdf" | "excel") {
+    setBusy(format);
+    try {
+      const filters: Record<string, string> = { supplierId, from: weekStart };
+      if (facilityId) filters.facilityId = facilityId;
+      await downloadReport("supplier-invoice", format, filters);
+    } catch (err: any) {
+      setError(err?.message || t("Download failed"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const m = data?.meta;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-6">
+      <div
+        className="absolute inset-0 bg-field-950/60 backdrop-blur-sm animate-fade-in print:hidden"
+        onClick={onClose}
+      />
+      <div className="invoice-print relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        {/* Toolbar — hidden when printing */}
+        <div className="flex items-center justify-between border-b border-field-200 bg-field-50 px-5 py-3 print:hidden">
+          <p className="text-sm font-semibold text-field-700">
+            🧾 {t("Supplier invoice")}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" loading={busy === "excel"} onClick={() => download("excel")}>
+              {t("Excel")}
+            </Button>
+            <Button size="sm" variant="secondary" loading={busy === "pdf"} onClick={() => download("pdf")}>
+              {t("PDF")}
+            </Button>
+            <Button size="sm" onClick={() => window.print()}>
+              {t("Print")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onClose}>
+              {t("Close")}
+            </Button>
+          </div>
+        </div>
+
+        {/* Document */}
+        <div className="overflow-y-auto px-6 py-6 sm:px-10">
+          {!data && !error && <LoadingScreen label={t("Preparing invoice…")} />}
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {data && m && (
+            <div className="text-field-900">
+              {/* Header */}
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-onion-700 pb-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-onion-700 text-lg text-white">
+                      🧅
+                    </span>
+                    <div>
+                      <p className="font-display text-lg font-bold leading-tight">{m.facility.name}</p>
+                      <p className="text-xs text-field-500">
+                        {[m.facility.location, m.facility.city].filter(Boolean).join(" · ")}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-widest text-field-400">
+                    {t("Supplier invoice")} · {m.invoiceNo}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-display text-xl font-bold text-onion-800">
+                    {t("INVOICE")}
+                  </p>
+                  <p className="mt-1 text-xs text-field-500">
+                    {t("Week")}: {fmtDate(m.weekStart)} – {fmtDate(m.weekEnd)}
+                  </p>
+                  <p className="text-xs text-field-400">
+                    {t("Generated")} {fmtDate(data.generatedAt)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bill to */}
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-field-400">
+                    {t("Supplier")}
+                  </p>
+                  <p className="mt-1 font-semibold">{m.supplier.name}</p>
+                  {m.supplier.address && <p className="text-xs text-field-500">{m.supplier.address}</p>}
+                  {m.supplier.city && <p className="text-xs text-field-500">{m.supplier.city}</p>}
+                  {m.supplier.phone && <p className="text-xs text-field-500">📞 {m.supplier.phone}</p>}
+                </div>
+                <div className="sm:text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-field-400">
+                    {t("Payment status")}
+                  </p>
+                  <div className="mt-1.5">
+                    {m.payment ? (
+                      <StatusBadge status={m.payment.status} />
+                    ) : (
+                      <span className="rounded-full bg-field-100 px-2.5 py-1 text-xs font-medium text-field-500">
+                        {t("Not processed")}
+                      </span>
+                    )}
+                  </div>
+                  {m.payment?.method && (
+                    <p className="mt-1.5 text-xs text-field-500">
+                      {m.payment.method.replace("_", " ")}
+                      {m.payment.collectedAt ? ` · ${fmtDate(m.payment.collectedAt)}` : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Toli work lines */}
+              <div className="mt-6 overflow-hidden rounded-xl border border-field-200">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-onion-700 text-left text-[11px] uppercase tracking-wider text-white">
+                      <th className="px-3 py-2.5 font-semibold">{t("Toli / Leader")}</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">{t("Bags")}</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">{t("Work amount")}</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">{t("Day charge")}</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">{t("Earnings")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-field-100">
+                    {m.toliLines.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-3 py-4 text-center text-xs text-field-400">
+                          {t("No approved work for this supplier in this week")}
+                        </td>
+                      </tr>
+                    )}
+                    {m.toliLines.map((line, i) => (
+                      <tr key={i} className="bg-white">
+                        <td className="px-3 py-2.5 font-medium">{line.leader}</td>
+                        <td className="px-3 py-2.5 text-right">{line.bags}</td>
+                        <td className="px-3 py-2.5 text-right">₹{line.workAmount.toLocaleString("en-IN")}</td>
+                        <td className="px-3 py-2.5 text-right">₹{line.dayCharge.toLocaleString("en-IN")}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-onion-800">
+                          ₹{line.earnings.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Drops + rent */}
+              {m.drops.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-field-400">
+                    {t("Drops & rent")} ({m.drops.length})
+                  </p>
+                  <div className="mt-1.5 overflow-hidden rounded-xl border border-field-200">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-field-100 text-left text-[11px] uppercase tracking-wider text-field-600">
+                          <th className="px-3 py-2 font-semibold">{t("Date")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{t("Workers")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{t("Rent per drop")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-field-100">
+                        {m.drops.map((d) => (
+                          <tr key={d.id} className="bg-white">
+                            <td className="px-3 py-2">{fmtDate(d.dropDate)}</td>
+                            <td className="px-3 py-2 text-right">{d.workers}</td>
+                            <td className="px-3 py-2 text-right">₹{d.rent.toLocaleString("en-IN")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Totals */}
+              <div className="mt-6 flex justify-end">
+                <div className="w-full max-w-xs space-y-1.5 text-sm">
+                  <div className="flex justify-between px-3">
+                    <span className="text-field-500">{t("Worker earnings")}</span>
+                    <span className="font-medium">₹{m.toliLines.reduce((s, l) => s + l.earnings, 0).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between px-3">
+                    <span className="text-field-500">{t("Drop rent")}</span>
+                    <span className="font-medium text-red-600">
+                      − ₹{m.drops.reduce((s, d) => s + d.rent, 0).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between rounded-lg bg-onion-700 px-3 py-2.5 text-white">
+                    <span className="font-semibold">{t("Net payment")}</span>
+                    <span className="font-display font-bold">
+                      ₹{Math.max(0, m.toliLines.reduce((s, l) => s + l.earnings, 0) - m.drops.reduce((s, d) => s + d.rent, 0)).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-8 border-t border-dashed border-field-200 pt-3 text-center text-[10px] text-field-400">
+                {t("Generated by Onion Facility Center · {facility} · {invoiceNo}", {
+                  facility: m.facility.name,
+                  invoiceNo: m.invoiceNo,
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

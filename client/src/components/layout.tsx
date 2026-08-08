@@ -97,6 +97,11 @@ const icons: Record<string, ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
     </svg>
   ),
+  account: (
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
 };
 
 function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
@@ -116,6 +121,7 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/audit", label: t("Audit Log"), icon: icons.audit },
         { to: "/github", label: t("GitHub"), icon: icons.github },
         { to: "/subscriptions", label: t("Subscriptions"), icon: icons.subscriptions },
+        { to: "/account", label: t("Account"), icon: icons.account },
       ];
     case "COMPANY_ADMIN":
       return [
@@ -124,6 +130,7 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/company/buyers", label: t("Buyers"), icon: icons.team },
         { to: "/company/orders", label: t("Sales Orders"), icon: icons.sales },
         { to: "/reports", label: t("Reports"), icon: icons.reports },
+        { to: "/account", label: t("Account"), icon: icons.account },
       ];
     case "FACILITY_ADMIN":
       return [
@@ -137,6 +144,7 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/facility/approvals", label: t("Approvals"), icon: icons.work },
         { to: "/facility/payments", label: t("Payments"), icon: icons.payments },
         { to: "/reports", label: t("Reports"), icon: icons.reports },
+        { to: "/account", label: t("Account"), icon: icons.account },
       ];
     case "SUPPLIER":
       return [
@@ -146,6 +154,7 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/supplier/payments", label: t("Payments"), icon: icons.payments },
         { to: "/supplier/payment-history", label: t("History"), icon: icons.history },
         { to: "/reports", label: t("Reports"), icon: icons.reports },
+        { to: "/account", label: t("Account"), icon: icons.account },
       ];
     case "TOLI_LEADER":
       return [
@@ -155,6 +164,7 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/leader/earnings", label: t("Earnings"), icon: icons.rates },
         { to: "/leader/payments-history", label: t("Payments"), icon: icons.payments },
         { to: "/reports", label: t("Reports"), icon: icons.reports },
+        { to: "/account", label: t("Account"), icon: icons.account },
       ];
     default:
       return [];
@@ -246,15 +256,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+                `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
                   isActive
-                    ? "bg-onion-50 text-onion-800 shadow-sm ring-1 ring-onion-100"
+                    ? "bg-gradient-to-r from-onion-50 to-transparent text-onion-800 shadow-sm ring-1 ring-inset ring-onion-100"
                     : "text-field-600 hover:bg-field-50 hover:text-field-900"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-onion-500 to-onion-700" />
+                  )}
                   <span className={isActive ? "text-onion-700" : ""}>{item.icon}</span>
                   {item.label}
                 </>
@@ -263,6 +276,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-field-100 p-3">
+          <a
+            href="/api/docs/ui"
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 flex items-center justify-between rounded-xl bg-field-50 px-3 py-2 transition-colors duration-150 hover:bg-onion-50 hover:text-onion-700"
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-field-500">
+              {t("API Docs")}
+            </span>
+            <svg className="h-3.5 w-3.5 text-field-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </a>
           <div className="mb-2 flex items-center justify-between rounded-xl bg-field-50 px-3 py-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-field-400">
               {t("Language")}
@@ -274,10 +300,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-field-200 bg-white/90 px-4 backdrop-blur lg:hidden">
+      <header className="safe-top sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-field-200 bg-white/90 px-4 backdrop-blur lg:hidden">
         <Brand />
         <div className="flex items-center gap-1.5">
           <LanguagePicker />
+          <a
+            href="/api/docs/ui"
+            target="_blank"
+            rel="noreferrer"
+            title={t("API Docs")}
+            className="rounded-lg p-2 text-field-400 hover:bg-onion-50 hover:text-onion-700"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </a>
           <button
             onClick={logout}
             className="rounded-lg p-2 text-field-400 hover:bg-red-50 hover:text-red-600"
@@ -296,8 +333,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       {/* Mobile bottom nav — shows every menu item, scrolls horizontally if needed */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-field-200 bg-white/95 backdrop-blur lg:hidden">
-        <div className="no-scrollbar flex items-stretch overflow-x-auto">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-field-200 bg-white/95 pb-1 backdrop-blur lg:hidden">
+        <div className="no-scrollbar flex items-stretch gap-1 overflow-x-auto px-2 pt-1.5">
           {items.map((item) => {
             const isActive =
               item.to === "/dashboard"
@@ -307,8 +344,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={`flex min-w-16 max-w-24 flex-1 flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium transition-colors duration-150 ${
-                  isActive ? "text-onion-700" : "text-field-400 hover:text-field-600"
+                className={`touch-target flex min-w-16 max-w-24 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-all duration-150 ${
+                  isActive
+                    ? "bg-onion-50 text-onion-800 shadow-sm ring-1 ring-inset ring-onion-100"
+                    : "text-field-400 hover:bg-field-50 hover:text-field-600"
                 }`}
               >
                 <span className="relative">

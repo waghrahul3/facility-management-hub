@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { facilities, suppliers, users } from "../../db/schema.js";
 import { hashPassword } from "../../auth/password.js";
@@ -183,6 +183,92 @@ router.post(
       newValues: { status: updated.status, login_generated_at: updated.login_generated_at },
     });
     return res.status(201).json({ supplier: updated, user });
+  })
+);
+
+// Edit a supplier's record. If the supplier has a login account, its
+// name/email/phone are kept in sync so the profile shown after sign-in matches.
+router.put(
+  "/suppliers/:id",
+  asyncHandler(async (req, res) => {
+    const supplier = (
+      await db.select().from(suppliers).where(eq(suppliers.id, param(req, "id"))).limit(1)
+    )[0];
+    if (!supplier) throw notFound("Supplier not found");
+
+    const { name, email, phone, contact_person, address, city } = req.body ?? {};
+
+    // If the login email changes, ensure it stays unique across users.
+    let newEmail: string | null = null;
+    const linkedUser = (
+      await db
+        .select()
+        .from(users)
+        .where(and(eq(users.role, "SUPPLIER"), eq(users.supplier_id, supplier.id)))
+        .limit(1)
+    )[0];
+    const rawEmail = email !== undefined ? String(email).toLowerCase().trim() : supplier.email;
+    if (linkedUser && rawEmail && rawEmail !== linkedUser.email) {
+      newEmail = rawEmail;
+      const [dup] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, newEmail), ne(users.id, linkedUser.id)))
+        .limit(1);
+      if (dup) throw badRequest("A user with this email already exists");
+    }
+
+    const [updated] = await db
+      .update(suppliers)
+      .set({
+        name: name !== undefined && name !== null && String(name).trim() !== "" ? String(name).trim() : supplier.name,
+        email: email !== undefined ? (rawEmail || null) : supplier.email,
+        phone: phone !== undefined ? phone : supplier.phone,
+        contact_person: contact_person !== undefined ? contact_person : supplier.contact_person,
+        address: address !== undefined ? address : supplier.address,
+        city: city !== undefined ? city : supplier.city,
+        updated_at: new Date(),
+      })
+      .where(eq(suppliers.id, supplier.id))
+      .returning();
+
+    if (linkedUser) {
+      await db
+        .update(users)
+        .set({
+          name: updated.name,
+          email: newEmail ?? linkedUser.email,
+          phone: updated.phone,
+          updated_at: new Date(),
+        })
+        .where(eq(users.id, linkedUser.id));
+    }
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "SUPPLIER",
+      entityId: updated.id,
+      oldValues: {
+        name: supplier.name,
+        email: supplier.email,
+        phone: supplier.phone,
+        contact_person: supplier.contact_person,
+        address: supplier.address,
+        city: supplier.city,
+      },
+      newValues: {
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        contact_person: updated.contact_person,
+        address: updated.address,
+        city: updated.city,
+      },
+    });
+    return res.json({ supplier: updated });
   })
 );
 

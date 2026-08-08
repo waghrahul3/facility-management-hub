@@ -19,6 +19,15 @@ export const config = {
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "1h",
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL ?? "7d",
   nodeEnv: process.env.NODE_ENV ?? "development",
+  // Public base URL used to build password-reset links. In production, set
+  // APP_BASE_URL to the real origin; dev falls back to the local Vite origin.
+  appBaseUrl: process.env.APP_BASE_URL ?? "http://localhost:3000",
+  // Transactional email (Resend). Without RESEND_API_KEY the app logs the
+  // email contents instead, so reset links stay reachable in dev/demo.
+  resend: {
+    apiKey: process.env.RESEND_API_KEY ?? "",
+    from: process.env.RESEND_EMAIL_FROM ?? "Onion Facility Center <no-reply@onionfacility.com>",
+  },
   // Auto-seed demo data on an empty database. Disable (SEED_DEMO=false) in
   // production so no default credentials are ever created on a hosted DB.
   seedDemo: (process.env.SEED_DEMO ?? "true").toLowerCase() !== "false",

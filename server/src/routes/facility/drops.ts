@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { supplierDrops, suppliers } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
@@ -21,10 +21,15 @@ router.get(
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams(req.query as Record<string, unknown>);
     const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
+    const query = req.query as Record<string, unknown>;
+    const q = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
     const where = and(
       eq(supplierDrops.facility_id, param(req, "facilityId")),
       gte(supplierDrops.drop_date, weekStart),
-      lte(supplierDrops.drop_date, weekEnd)
+      lte(supplierDrops.drop_date, weekEnd),
+      q ? ilike(suppliers.name, `%${q}%`) : undefined,
+      status ? eq(supplierDrops.status, status as "REGISTERED" | "COMPLETED") : undefined
     );
     const rows = await db
       .select({
@@ -44,6 +49,7 @@ router.get(
     const [totalRow] = await db
       .select({ value: count() })
       .from(supplierDrops)
+      .innerJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
       .where(where);
     return res.json({ drops: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })

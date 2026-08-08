@@ -8,6 +8,7 @@ import workEntriesRouter from "./facility/workEntries.js";
 import ratesRouter from "./facility/rates.js";
 import summariesRouter from "./facility/summaries.js";
 import paymentsRouter from "./facility/payments.js";
+import advancesRouter from "./facility/advances.js";
 import dashboardRouter from "./facility/dashboard.js";
 
 const router = Router();
@@ -24,6 +25,7 @@ router.use(workEntriesRouter);
 router.use(ratesRouter);
 router.use(summariesRouter);
 router.use(paymentsRouter);
+router.use(advancesRouter);
 router.use(dashboardRouter);
 
 export default router;

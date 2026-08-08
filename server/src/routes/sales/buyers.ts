@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { buyers, companies } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
@@ -16,7 +16,19 @@ router.get(
   asyncHandler(async (req: any, res) => {
     const cid = myCompanyId(req);
     const { limit, offset, page, pageSize } = parsePage(req.query);
-    const where = cid ? eq(buyers.company_id, cid) : undefined;
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const where = and(
+      cid ? eq(buyers.company_id, cid) : undefined,
+      q
+        ? or(ilike(buyers.name, `%${q}%`), ilike(buyers.phone, `%${q}%`), ilike(buyers.city, `%${q}%`))
+        : undefined,
+      status === "ACTIVE"
+        ? eq(buyers.is_active, true)
+        : status === "INACTIVE"
+          ? eq(buyers.is_active, false)
+          : undefined
+    );
     const rows = await db
       .select({
         buyer: buyers,

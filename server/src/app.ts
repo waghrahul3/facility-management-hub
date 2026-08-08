@@ -17,6 +17,7 @@ import toliLeaderRoutes from "./routes/tolileader.js";
 import reportsRoutes from "./routes/reports.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import salesRoutes from "./routes/sales.js";
+import docsRoutes from "./routes/docs.js";
 import { errorMiddleware } from "./lib/errors.js";
 import { config } from "./config.js";
 
@@ -84,6 +85,9 @@ export function createApp() {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, name: "onion-facility-center", time: new Date().toISOString() });
   });
+
+  // API documentation — OpenAPI JSON at /api/docs, interactive UI at /api/docs/ui
+  app.use("/api/docs", docsRoutes);
 
   // API routes
   app.use("/api/auth", authRoutes);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { suppliers, supplierPayments } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
@@ -7,7 +7,11 @@ import { audit } from "../../lib/audit.js";
 import { asyncHandler } from "../../lib/errors.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
-import { computeSupplierWeekPayment, processSupplierPayments } from "../../services/payments.js";
+import {
+  computeSupplierWeekPayment,
+  outstandingAdvance,
+  processSupplierPayments,
+} from "../../services/payments.js";
 import { weekParams } from "./_shared.js";
 
 const router = Router();
@@ -36,6 +40,8 @@ router.get(
           total_drops: supplierPayments.total_drops,
           total_rent_charges: supplierPayments.total_rent_charges,
           net_payment: supplierPayments.net_payment,
+          advance_deducted: supplierPayments.advance_deducted,
+          advance_balance_before: supplierPayments.advance_balance_before,
           collection_status: supplierPayments.collection_status,
           payment_method: supplierPayments.payment_method,
         },
@@ -51,7 +57,18 @@ router.get(
       .select({ value: count() })
       .from(supplierPayments)
       .where(where);
-    return res.json({ payments: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
+
+    // Include each supplier's current outstanding advance for the process UI
+    const withOutstanding = await Promise.all(
+      rows.map(async (r) => ({
+        ...r,
+        outstanding_advance: await outstandingAdvance(
+          param(req, "facilityId"),
+          r.supplier.id
+        ),
+      }))
+    );
+    return res.json({ payments: withOutstanding, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
 );
 
@@ -87,10 +104,15 @@ router.post(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { weekStart, weekEnd } = weekParams((req.body ?? {}) as Record<string, unknown>);
+    const advanceDeductions =
+      (req.body ?? {}).advanceDeductions && typeof (req.body ?? {}).advanceDeductions === "object"
+        ? ((req.body ?? {}).advanceDeductions as Record<string, number>)
+        : {};
     const results = await processSupplierPayments(
       param(req, "facilityId"),
       weekStart,
-      weekEnd
+      weekEnd,
+      advanceDeductions
     );
     await audit({
       req,
@@ -99,7 +121,7 @@ router.post(
       action: "UPDATE",
       entityType: "SUPPLIER_PAYMENT",
       entityId: param(req, "facilityId"),
-      newValues: { weekStart, results },
+      newValues: { weekStart, advanceDeductions, results },
     });
     return res.json({ processed: results });
   })
@@ -110,7 +132,19 @@ router.get(
   requireFacilityAccess,
   asyncHandler(async (req, res) => {
     const { limit, offset, page, pageSize } = parsePage(req.query as Record<string, unknown>);
-    const where = eq(supplierPayments.facility_id, param(req, "facilityId"));
+    const query = req.query as Record<string, unknown>;
+    const q = typeof query.q === "string" ? query.q.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim() : "";
+    const where = and(
+      eq(supplierPayments.facility_id, param(req, "facilityId")),
+      q ? ilike(suppliers.name, `%${q}%`) : undefined,
+      status
+        ? eq(
+            supplierPayments.collection_status,
+            status as "PENDING" | "COLLECTED_FROM_FACILITY" | "DISTRIBUTED_TO_WORKERS"
+          )
+        : undefined
+    );
     const rows = await db
       .select({
         payment: supplierPayments,
@@ -125,6 +159,7 @@ router.get(
     const [totalRow] = await db
       .select({ value: count() })
       .from(supplierPayments)
+      .innerJoin(suppliers, eq(suppliers.id, supplierPayments.supplier_id))
       .where(where);
     return res.json({ payments: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })

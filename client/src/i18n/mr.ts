@@ -56,6 +56,7 @@ export const mr: Record<string, string> = {
   Admins: "प्रशासक",
   "Company Admins": "कंपनी प्रशासक",
   GitHub: "गिटहब",
+  "API Docs": "API दस्तऐवज",
 
   "Log out": "लॉगआउट",
   Search: "शोधा",
@@ -101,6 +102,125 @@ export const mr: Record<string, string> = {
   "No data": "डेटा नाही",
 
   // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // Password & account
+  // ---------------------------------------------------------------------
+  "Forgot password?": "पासवर्ड विसरलात?",
+  "Check your email": "तुमचा ईमेल तपासा",
+  "If an account exists for that email, we've sent a one-time password reset link. It expires in 1 hour.":
+    "त्या ईमेलसाठी खाते अस्तित्वात असल्यास, आम्ही एक-वेळचा पासवर्ड रीसेट दुवा पाठवला आहे. तो 1 तासात कालबाह्य होतो.",
+  "Back to sign in": "साइन इनवर परत",
+  "Enter your email and we'll send you a reset link":
+    "तुमचा ईमेल टाका आणि आम्ही तुम्हाला रीसेट दुवा पाठवू",
+  "Send reset link": "रीसेट दुवा पाठवा",
+  "Sending…": "पाठवत आहे…",
+  "Set a new password": "नवीन पासवर्ड सेट करा",
+  "Choose a strong password — at least 8 characters":
+    "मजबूत पासवर्ड निवडा — किमान 8 वर्ण",
+  "New password": "नवीन पासवर्ड",
+  "Confirm new password": "नवीन पासवर्डची पुष्टी",
+  "Saving…": "जतन होत आहे…",
+  "Reset password": "पासवर्ड रीसेट करा",
+  "Invalid reset link": "अवैध रीसेट दुवा",
+  "This link is missing its reset token. Request a new one to continue.":
+    "या दुव्यात रीसेट टोकन नाही. पुढे चालू ठेवण्यासाठी नवीन दुव्याची विनंती करा.",
+  "Request a new link": "नवीन दुव्याची विनंती करा",
+  "Passwords do not match": "पासवर्ड जुळत नाहीत",
+  "Password must be at least 8 characters": "पासवर्ड किमान 8 वर्णांचा असावा",
+  "Reset failed": "रीसेट अयशस्वी",
+  "Request failed": "विनंती अयशस्वी",
+  "Password reset successfully. Sign in with your new password.":
+    "पासवर्ड यशस्वीरित्या रीसेट झाला. तुमच्या नवीन पासवर्डने साइन इन करा.",
+  Account: "खाते",
+  "Your profile and security settings": "तुमची प्रोफाइल आणि सुरक्षा सेटिंग्ज",
+  "Change password": "पासवर्ड बदला",
+  "Current password": "सध्याचा पासवर्ड",
+  "Update password": "पासवर्ड अद्यतनित करा",
+  "Password changed. You'll be asked to sign in again after your session expires.":
+    "पासवर्ड बदलला. तुमचे सत्र संपल्यानंतर तुम्हाला पुन्हा साइन इन करण्यास सांगितले जाईल.",
+  "Failed to change password": "पासवर्ड बदलण्यात अयशस्वी",
+  "Set a new password for {name}. They'll be signed out and must use the new password.":
+    "{name} साठी नवीन पासवर्ड सेट करा. त्यांना लॉगआउट केले जाईल आणि त्यांना नवीन पासवर्ड वापरावा लागेल.",
+  "Set a new password. The user will be signed out and must use the new password.":
+    "नवीन पासवर्ड सेट करा. वापरकर्त्याला लॉगआउट केले जाईल आणि त्याला नवीन पासवर्ड वापरावा लागेल.",
+  "Failed to reset password": "पासवर्ड रीसेट करण्यात अयशस्वी",
+
+  "Edit facility admin": "सुविधा प्रशासक संपादित करा",
+  "Edit company admin": "कंपनी प्रशासक संपादित करा",
+  "Edit supplier": "पुरवठादार संपादित करा",
+  "Supplier “{name}” updated.": "पुरवठादार “{name}” अद्यतनित केला.",
+  "Failed to update supplier": "पुरवठादार अद्यतनित करण्यात अयशस्वी",
+  "Failed to update admin": "प्रशासक अद्यतनित करण्यात अयशस्वी",
+  Profile: "प्रोफाइल",
+  "Save profile": "प्रोफाइल जतन करा",
+  "Profile updated.": "प्रोफाइल अद्यतनित केली.",
+  "Failed to update profile": "प्रोफाइल अद्यतनित करण्यात अयशस्वी",
+  "Used to sign in": "साइन इन करण्यासाठी वापरले जाते",
+
+  "Edit toli leader": "टोळी नेता संपादित करा",
+  "Toli leader updated.": "टोळी नेता अद्यतनित केला.",
+  "Failed to update toli leader": "टोळी नेता अद्यतनित करण्यात अयशस्वी",
+  "Linked login: {email} — name and phone stay in sync.":
+    "लिंक केलेले लॉगिन: {email} — नाव आणि फोन सिंकमध्ये राहतात.",
+  "This leader has no login account yet — the name and phone are stored with the toli.":
+    "या नेत्याकडे अद्याप लॉगिन खाते नाही — नाव आणि फोन टोळीसह जतन केले जातात.",
+
+  // ---------------------------------------------------------------------
+  // Supplier advances
+  // ---------------------------------------------------------------------
+  "Supplier advances": "पुरवठादार अग्रिम रक्कम",
+  "Cash advanced by facilities, recovered from your weekly payments": "सुविधांकडून दिलेली अग्रिम रक्कम, तुमच्या साप्ताहिक देयकांमधून वसूल केली जाते",
+  "No advance records": "अग्रिम रक्कम नोंदी नाहीत",
+  "Ask the facility admin to record any advance cash given to you": "तुम्हाला दिलेली अग्रिम रक्कम नोंदवण्यासाठी सुविधा अ‍ॅडमिनला सांगा",
+  "Total advance received": "एकूण अग्रिम रक्कम मिळाली",
+  "Outstanding to repay": "परत करण्यास बाकी रक्कम",
+  "Recovered so far": "आतापर्यंत वसूल केलेली रक्कम",
+  "Record advance": "अग्रिम रक्कम नोंदवा",
+  "New advance": "नवीन अग्रिम रक्कम",
+  "Advance amount": "अग्रिम रक्कम",
+  "Advance date": "अग्रिम तारीख",
+  "Outstanding balance": "थकीत शिल्लक",
+  "Outstanding advances": "थकीत अग्रिम रक्कम",
+  "Advance history": "अग्रिम रक्कम इतिहास",
+  "This advance has already been recovered from payments and can no longer be deleted": "ही अग्रिम रक्कम देयकांमधून आधीच वसूल झाली आहे, ती आता हटवता येत नाही",
+  "Advance recorded.": "अग्रिम रक्कम नोंदवली.",
+  "Deduct from this week's payment": "या आठवड्याच्या देयकातून वजा करा",
+  "Amount to deduct (advance recovery)": "वजा करायची रक्कम (अग्रिम वसुली)",
+  "Deducting {amount} from this supplier's net payment": "या पुरवठादाराच्या निव्वळ देयकातून {amount} वजा केले जात आहे",
+  "Advance deleted.": "अग्रिम रक्कम हटवली.",
+  "Failed to record advance": "अग्रिम रक्कम नोंदवण्यात अयशस्वी",
+  "Failed to delete advance": "अग्रिम रक्कम हटवण्यात अयशस्वी",
+  "No advances yet": "अद्याप अग्रिम रक्कम नाही",
+  "Total outstanding advance:": "एकूण थकीत अग्रिम रक्कम:",
+  advance: "अग्रिम",
+  "Process & lock payments": "देयके प्रक्रिया करा आणि लॉक करा",
+  "Advance amount (₹)": "अग्रिम रक्कम (₹)",
+  "Delete this advance? This cannot be undone.": "ही अग्रिम रक्कम हटवायची? हे परत करता येणार नाही.",
+  "+ Record advance": "+ अग्रिम रक्कम नोंदवा",
+  "Approve the advance recovery for each supplier. The deduction reduces their net payment; the rest carries forward.": "प्रत्येक पुरवठादाराची अग्रिम वसुली मंजूर करा. वजावट त्यांच्या निव्वळ देयकातून होते; उर्वरित रक्कम पुढे वळते.",
+  "Cash given to suppliers before settlement — recover it when processing weekly payments": "सेटलमेंटपूर्वी पुरवठादारांना दिलेली रोकड — साप्ताहिक देयके प्रक्रिया करताना वसूल करा",
+  "e.g. advance for workers of next drop": "उदा. पुढील पोचच्या कामगारांसाठी अग्रिम",
+  // Advance statement (printable)
+  "Advance statement": "अग्रिम पत्रक",
+  "Supplier advance statement": "पुरवठादार अग्रिम पत्रक",
+  "ADVANCE STATEMENT": "अग्रिम पत्रक",
+  Statement: "पत्रक",
+  "Advances given": "दिलेली अग्रिम",
+  "Recovered from payments": "देयकांतून वसूल केले",
+  "Recovered from weekly payments": "साप्ताहिक देयकांतून वसूल केले",
+  "Current balance": "सध्याची शिल्लक",
+  "Total advances given": "एकूण दिलेली अग्रिम",
+  "Total given": "एकूण दिले",
+  "Total recovered": "एकूण वसूल",
+  "Balance before": "आधीची शिल्लक",
+  Deducted: "वजावट",
+  Period: "कालावधी",
+  "No advances recorded in this period": "या कालावधीत अग्रिम नोंदवलेली नाही",
+  "No recoveries yet — the full advance is still outstanding": "अद्याप वसुली नाही — संपूर्ण अग्रिम अद्याप बाकी आहे",
+  "Preparing statement…": "पत्रक तयार होत आहे…",
+  "Fully recovered — no balance due": "पूर्णपणे वसूल — कोणतीही शिल्लक नाही",
+  "All facilities": "सर्व सुविधा",
+  "Generated by Onion Facility Center · {statementNo}": "ओनियन सुविधा केंद्राद्वारे तयार केले · {statementNo}",
   // Login page
   // ---------------------------------------------------------------------
   "Sign in to your account": "तुमच्या खात्यात साइन इन करा",
@@ -644,6 +764,19 @@ export const mr: Record<string, string> = {
   "The facility admin generates summaries after approvals": "सुविधा प्रशासक मंजुरीनंतर सारांश तयार करतो",
   "Amounts distributed to your toli by the supplier": "पुरवठादाराने तुमच्या टोळीला वितरित केलेल्या रकमा",
   "Distributions appear after Sunday settlement": "रविवारी सेटलमेंटनंतर वितरण दिसते",
+  "Supplier invoice": "पुरवठादार देयक",
+  INVOICE: "देयक पत्रक",
+  Generated: "निर्मित",
+  "Payment status": "देयक स्थिती",
+  "Not processed": "प्रक्रिया केलेले नाही",
+  "Drops & rent": "ढिग व भाडे",
+  "Drop rent": "ढिग भाडे",
+  Print: "छापा",
+  "Supplier Invoice": "पुरवठादार देयक पत्रक",
+  "No approved work for this supplier in this week": "या आठवड्यात या पुरवठादारासाठी मंजूर काम नाही",
+  "Preparing invoice…": "देयक तयार होत आहे…",
+  "Toli / Leader": "टोळी / नेता",
+  "Generated by Onion Facility Center · {facility} · {invoiceNo}": "कांदा सुविधा केंद्राने निर्मित · {facility} · {invoiceNo}",
 
   // ---------------------------------------------------------------------
   // Reports

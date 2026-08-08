@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bagSizes, supplierDrops, tolis, workEntries } from "../../db/schema.js";
 import { endOfWeek, startOfWeek } from "../../lib/date.js";
@@ -18,6 +18,8 @@ router.get(
     const weekStart = q.weekStart ? new Date(String(q.weekStart)) : startOfWeek(new Date());
     const weekEnd = q.weekEnd ? new Date(String(q.weekEnd)) : endOfWeek(weekStart);
     const { limit, offset, page, pageSize } = parsePage(q);
+    const search = typeof q.q === "string" ? q.q.trim() : "";
+    const status = typeof q.status === "string" ? q.status.trim() : "";
 
     // Tolis under this supplier's drops
     const dropRows = await db
@@ -31,16 +33,29 @@ router.get(
         )
       );
     const dropIds = dropRows.map((d) => d.id);
-    if (dropIds.length === 0) return res.json({ entries: [] });
+    if (dropIds.length === 0) {
+      return res.json({ entries: [], ...pageMeta(0, { page, pageSize, limit, offset }) });
+    }
 
-    const toliRows = await db.select().from(tolis).where(inArray(tolis.drop_id, dropIds));
+    const toliRows = await db
+      .select()
+      .from(tolis)
+      .where(
+        and(
+          inArray(tolis.drop_id, dropIds),
+          search ? ilike(tolis.leader_name, `%${search}%`) : undefined
+        )
+      );
     const toliIds = toliRows.map((t) => t.id);
-    if (toliIds.length === 0) return res.json({ entries: [] });
+    if (toliIds.length === 0) {
+      return res.json({ entries: [], ...pageMeta(0, { page, pageSize, limit, offset }) });
+    }
 
     const where = and(
       inArray(workEntries.toli_id, toliIds),
       gte(workEntries.work_date, weekStart),
-      lte(workEntries.work_date, weekEnd)
+      lte(workEntries.work_date, weekEnd),
+      status ? eq(workEntries.status, status as "DRAFT" | "APPROVED" | "PAID") : undefined
     );
     const entries = await db
       .select({

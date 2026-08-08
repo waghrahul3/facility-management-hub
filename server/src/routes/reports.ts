@@ -9,6 +9,8 @@ import {
   supplierStatements,
 } from "../lib/reports/payments.js";
 import { dropsLedger, rentSummary } from "../lib/reports/drops.js";
+import { supplierInvoice } from "../lib/reports/invoices.js";
+import { supplierAdvanceStatement } from "../lib/reports/advances.js";
 import { summariesLedger, workLedger } from "../lib/reports/work.js";
 import { reportToExcel, reportToPdf } from "../lib/reports/exports.js";
 import {
@@ -94,6 +96,8 @@ const REPORT_TYPES: Record<string, (scope: ReportScope, f: ReportFilters) => Pro
   distributions: distributionsLedger,
   "supplier-statements": supplierStatements,
   rent: rentSummary,
+  "supplier-invoice": supplierInvoice,
+  "supplier-advance-statement": supplierAdvanceStatement,
   "subscription-earnings": subscriptionEarnings,
   "subscription-monthly": subscriptionMonthlyTrend,
 };
@@ -189,10 +193,10 @@ router.get(
 // ---------------------------------------------------------------------------
 
 const ROLE_REPORTS: Record<string, string[]> = {
-  SUPER_ADMIN: ["subscription-earnings", "subscription-monthly", "payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent"],
-  COMPANY_ADMIN: ["payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent"],
-  FACILITY_ADMIN: ["payments", "drops", "work", "summaries", "rent"],
-  SUPPLIER: ["supplier-statements", "distributions", "drops", "work"],
+  SUPER_ADMIN: ["subscription-earnings", "subscription-monthly", "payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent", "supplier-invoice", "supplier-advance-statement"],
+  COMPANY_ADMIN: ["payments", "drops", "work", "summaries", "distributions", "supplier-statements", "rent", "supplier-invoice", "supplier-advance-statement"],
+  FACILITY_ADMIN: ["payments", "drops", "work", "summaries", "rent", "supplier-invoice", "supplier-advance-statement"],
+  SUPPLIER: ["supplier-statements", "distributions", "drops", "work", "supplier-invoice", "supplier-advance-statement"],
   TOLI_LEADER: ["summaries", "distributions", "work"],
 };
 

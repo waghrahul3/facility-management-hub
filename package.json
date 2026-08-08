@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Onion Facility Center - multi-facility onion processing management with supplier drops, toli work recording, and Sunday payment collection/distribution",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c blue,green \"cross-env PORT=3001 tsx watch server/src/index.ts\" \"vite client\"",
+    "dev": "concurrently -k -n api,web -c blue,green \"cross-env PORT=3001 tsx watch server/src/index.ts\" \"vite client --port 3000\"",
     "build": "tsc -p server/tsconfig.json && vite build client",
     "start": "node server/dist/index.js",
     "preview": "sh ./scripts/ensure-pg.sh && npm run build && NODE_ENV=production node server/dist/index.js",
@@ -28,7 +28,8 @@
     "pg": "^8.22.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2"
+    "react-router-dom": "^7.18.2",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -41,6 +42,7 @@
     "@types/pg": "^8.20.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.3",
+    "@types/swagger-ui-express": "^4.1.8",
     "@vitejs/plugin-react": "^6.0.5",
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",

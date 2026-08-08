@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useI18n } from "../../i18n";
-import { Button, Card, EmptyState, Modal, Pagination, Spinner, StatCard } from "../../components/ui";
+import { Button, EmptyState, Spinner, StatCard } from "../../components/ui";
 import ExportButtons from "../../components/ExportButtons";
 import PlanModal from "./subscriptions/PlanModal";
 import SubscriptionModal from "./subscriptions/SubscriptionModal";
 import PaymentModal from "./subscriptions/PaymentModal";
 import RenewModal from "./subscriptions/RenewModal";
 import SubscriptionPayments from "./subscriptions/SubscriptionPayments";
-import { cycleLabel, formatDate, formatMoney, statusColor } from "./subscriptions/helpers";
+import PlansTab from "./subscriptions/PlansTab";
+import SubscriptionsTab from "./subscriptions/SubscriptionsTab";
+import { formatMoney } from "./subscriptions/helpers";
 import type { EntityOption, Subscription, SubscriptionPlan, SubscriptionStats } from "./subscriptions/types";
 
 const PAGE_SIZE = 50;
@@ -225,153 +227,39 @@ export default function SubscriptionsPage() {
 
       {/* Plans Tab */}
       {tab === "plans" && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => { setEditingPlan(null); setShowPlanModal(true); }}>
-              + Add Plan
-            </Button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {plans.map((plan) => (
-              <Card key={plan.id}>
-                <div className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-field-900">{plan.name}</h3>
-                      <p className="text-sm text-field-500">{plan.type} Plan • {cycleLabel(plan.billing_cycle)}</p>
-                    </div>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${plan.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                      {plan.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold text-onion-700">{formatMoney(plan.price)}</span>
-                    <span className="text-sm text-field-500">/{cycleLabel(plan.billing_cycle)}</span>
-                  </div>
-                  {plan.description && (
-                    <p className="mt-2 text-sm text-field-600">{plan.description}</p>
-                  )}
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setEditingPlan(plan);
-                        setShowPlanModal(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    {plan.is_active && (
-                      <Button
-                        variant="secondary"
-                        className="text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeactivatePlan(plan.id)}
-                      >
-                        Deactivate
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <PlansTab
+          plans={plans}
+          onAdd={() => {
+            setEditingPlan(null);
+            setShowPlanModal(true);
+          }}
+          onEdit={(plan) => {
+            setEditingPlan(plan);
+            setShowPlanModal(true);
+          }}
+          onDeactivate={handleDeactivatePlan}
+        />
       )}
 
       {/* Subscriptions Tab */}
       {tab === "subscriptions" && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setShowSubModal(true)}>+ Add Subscription</Button>
-          </div>
-          {subscriptions.length === 0 ? (
-            <EmptyState title={t("No subscriptions yet")} hint={t("Create a plan and add subscriptions")} />
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-field-200 bg-white">
-              <table className="min-w-full divide-y divide-field-200">
-                <thead>
-                  <tr className="bg-field-50">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Entity</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Plan</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Period</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-field-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-field-100">
-                  {subscriptions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-field-50/50">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-field-800">
-                          {sub.company_name || sub.supplier_name || "—"}
-                        </p>
-                        <p className="text-xs text-field-500">{sub.plan_type}</p>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-field-700">{sub.plan_name}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-field-800">{formatMoney(sub.plan_price)}</td>
-                      <td className="px-4 py-3 text-sm text-field-600">
-                        {formatDate(sub.start_date)} — {formatDate(sub.end_date)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColor(sub.status)}`}>
-                          {sub.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          {sub.status !== "ACTIVE" && (
-                            <button
-                              onClick={() => handleUpdateStatus(sub.id, "ACTIVE")}
-                              className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50"
-                            >
-                              Activate
-                            </button>
-                          )}
-                          {sub.status === "ACTIVE" && (
-                            <>
-                              <button
-                                onClick={() => handleUpdateStatus(sub.id, "EXPIRED")}
-                                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                              >
-                                Expire
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedSub(sub);
-                                  setShowPaymentModal(true);
-                                }}
-                                className="rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
-                              >
-                                Record Payment
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedSub(sub);
-                                  setShowRenewModal(true);
-                                }}
-                                className="rounded px-2 py-1 text-xs text-green-700 hover:bg-green-50"
-                              >
-                                Renew
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <Pagination
-            page={page}
-            totalPages={Math.max(1, Math.ceil(subTotal / PAGE_SIZE))}
-            total={subTotal}
-            pageSize={PAGE_SIZE}
-            onChange={setPage}
-          />
-        </div>
+        <SubscriptionsTab
+          subscriptions={subscriptions}
+          page={page}
+          total={subTotal}
+          onChangePage={setPage}
+          onAdd={() => setShowSubModal(true)}
+          onActivate={(subId) => handleUpdateStatus(subId, "ACTIVE")}
+          onExpire={(subId) => handleUpdateStatus(subId, "EXPIRED")}
+          onRecordPayment={(sub) => {
+            setSelectedSub(sub);
+            setShowPaymentModal(true);
+          }}
+          onRenew={(sub) => {
+            setSelectedSub(sub);
+            setShowRenewModal(true);
+          }}
+        />
       )}
 
       {/* Payments Tab */}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../i18n";
 import { Button, Field, Input } from "../components/ui";
@@ -35,6 +35,8 @@ export default function LoginPage() {
   const { user, login } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const justReset = Boolean((location.state as { passwordReset?: boolean } | null)?.passwordReset);
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -180,6 +182,12 @@ export default function LoginPage() {
               {t("Use your facility email or phone number")}
             </p>
 
+            {justReset && (
+              <div className="animate-fade-in mb-4 rounded-lg border border-onion-200 bg-onion-50 px-3 py-2 text-xs font-medium text-onion-800">
+                {t("Password reset successfully. Sign in with your new password.")}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <Field label={t("Email or phone")}>
                 <Input
@@ -201,6 +209,15 @@ export default function LoginPage() {
                   required
                 />
               </Field>
+
+              <div className="-mt-1 flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-onion-700 transition-colors duration-150 hover:text-onion-800 hover:underline"
+                >
+                  {t("Forgot password?")}
+                </Link>
+              </div>
 
               {error && (
                 <div className="animate-fade-in rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../i18n";
 import {
   Badge,
+  Button,
   Card,
   EmptyState,
+  ListFilters,
   LoadingScreen,
   Money,
   PageHeader,
@@ -15,9 +18,11 @@ import {
 } from "../../components/ui";
 import { fmtDate } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
+import SupplierInvoiceModal from "../../components/SupplierInvoiceModal";
 
 interface HistoryPayment {
   id: string;
+  facility: { id: string; name: string } | null;
   week_start_date: string;
   week_end_date: string;
   total_worker_earnings: number;
@@ -38,20 +43,27 @@ interface HistoryPayment {
 const PAGE_SIZE = 50;
 
 export default function SupplierPaymentHistoryPage() {
+  const { user } = useAuth();
   const { t } = useI18n();
+  const userSupplierId = user?.supplierId ?? "";
   const [payments, setPayments] = useState<HistoryPayment[] | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [invoiceFor, setInvoiceFor] = useState<{ facilityId: string; weekStart: string } | null>(null);
 
   useEffect(() => {
-    api<{ payments: HistoryPayment[]; total: number }>(`/supplier/payment-history?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ payments: HistoryPayment[]; total: number }>(
+      `/supplier/payment-history?page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+    ).then((r) => {
       setPayments(r.payments);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [page]);
+  }, [page, q, status]);
 
   if (!payments) return <LoadingScreen label={t("Loading payment history…")} />;
 
@@ -63,8 +75,35 @@ export default function SupplierPaymentHistoryPage() {
         action={<ExportButtons reportType="distributions" />}
       />
 
+      <div className="mb-4">
+        <ListFilters
+          search={q}
+          onSearch={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          status={status}
+          onStatus={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+          statusOptions={[
+            { value: "PENDING", label: t("Pending") },
+            { value: "COLLECTED_FROM_FACILITY", label: t("Collected from facility") },
+            { value: "DISTRIBUTED_TO_WORKERS", label: t("Distributed to workers") },
+          ]}
+          searchPlaceholder={t("Search week date…")}
+        />
+      </div>
+
       {payments.length === 0 ? (
-        <Card><EmptyState title={t("No payments yet")} hint={t("Payments appear after Sunday processing")} /></Card>
+        <Card>
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No payments match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState title={t("No payments yet")} hint={t("Payments appear after Sunday processing")} />
+          )}
+        </Card>
       ) : (
         <div className="space-y-4">
           {payments.map((p) => {
@@ -79,9 +118,24 @@ export default function SupplierPaymentHistoryPage() {
                     {p.payment_method && (
                       <Badge tone="slate">{p.payment_method.replace("_", " ")}</Badge>
                     )}
+                    <Badge tone="blue">{p.facility?.name ?? ""}</Badge>
                   </span>
                 }
               >
+                <div className="mb-3 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      setInvoiceFor({
+                        facilityId: p.facility?.id ?? "",
+                        weekStart: p.week_start_date.slice(0, 10),
+                      })
+                    }
+                  >
+                    🧾 {t("Invoice")}
+                  </Button>
+                </div>
                 <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <div className="rounded-lg bg-field-50 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Earnings")}</p>
@@ -132,6 +186,14 @@ export default function SupplierPaymentHistoryPage() {
         total={total}
         pageSize={PAGE_SIZE}
         onChange={setPage}
+      />
+
+      <SupplierInvoiceModal
+        open={invoiceFor !== null}
+        onClose={() => setInvoiceFor(null)}
+        supplierId={userSupplierId}
+        facilityId={invoiceFor?.facilityId ?? null}
+        weekStart={invoiceFor?.weekStart ?? ""}
       />
     </div>
   );

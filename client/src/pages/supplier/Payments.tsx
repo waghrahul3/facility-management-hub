@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, post } from "../../lib/api";
+import { api, getMyAdvances, post } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../i18n";
+import SupplierAdvanceStatementModal from "../../components/SupplierAdvanceStatementModal";
 import {
   Badge,
   Button,
@@ -32,6 +34,20 @@ interface ThisWeek {
   netPayment: number;
 }
 
+interface MyAdvances {
+  advances: Array<{
+    id: string;
+    amount: number;
+    advance_date: string;
+    payment_method: string;
+    notes: string | null;
+    facility: { id: string; name: string };
+  }>;
+  totalGiven: number;
+  totalOutstanding: number;
+  byFacility: Array<{ facilityId: string; outstanding: number }>;
+}
+
 interface PaymentPending {
   payment: {
     id: string;
@@ -51,7 +67,9 @@ interface PaymentPending {
 }
 
 export default function SupplierPaymentsPage() {
+  const { user } = useAuth();
   const { t } = useI18n();
+  const [statementOpen, setStatementOpen] = useState(false);
   const [week, setWeek] = useState<ThisWeek | null>(null);
   const [pending, setPending] = useState<PaymentPending | null>(null);
   const [method, setMethod] = useState<"CASH" | "BANK_TRANSFER">("CASH");
@@ -59,6 +77,7 @@ export default function SupplierPaymentsPage() {
   const [distributions, setDistributions] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [advances, setAdvances] = useState<MyAdvances | null>(null);
 
   const load = useCallback(() => {
     api<ThisWeek>("/supplier/this-week").then(setWeek);
@@ -68,6 +87,7 @@ export default function SupplierPaymentsPage() {
         setDistributions({});
       }
     });
+    getMyAdvances().then(setAdvances).catch(() => setAdvances(null));
   }, []);
 
   useEffect(load, [load]);
@@ -174,6 +194,87 @@ export default function SupplierPaymentsPage() {
         </div>
       </Card>
 
+      {/* Advance balance + history */}
+      <Card
+        title={t("Supplier advances")}
+        subtitle={t("Cash advanced by facilities, recovered from your weekly payments")}
+        className="mb-6"
+        action={
+          user?.supplierId ? (
+            <Button size="sm" variant="secondary" onClick={() => setStatementOpen(true)}>
+              📄 {t("Advance statement")}
+            </Button>
+          ) : undefined
+        }
+      >
+        {!advances ? (
+          <EmptyState title={t("No advance records")} hint={t("Ask the facility admin to record any advance cash given to you")} />
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl bg-amber-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-amber-600">{t("Total advance received")}</p>
+                <p className="mt-1 font-display text-xl font-bold text-amber-900">
+                  <Money value={advances.totalGiven} />
+                </p>
+              </div>
+              <div className="rounded-xl bg-red-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t("Outstanding to repay")}</p>
+                <p className="mt-1 font-display text-xl font-bold text-red-700">
+                  <Money value={advances.totalOutstanding} />
+                </p>
+              </div>
+              <div className="rounded-xl bg-onion-50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-onion-600">{t("Recovered so far")}</p>
+                <p className="mt-1 font-display text-xl font-bold text-onion-800">
+                  <Money value={advances.totalGiven - advances.totalOutstanding} />
+                </p>
+              </div>
+            </div>
+            {advances.byFacility.length > 1 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {advances.byFacility.map((b) => {
+                  const name = advances.advances.find((a) => a.facility.id === b.facilityId)?.facility.name;
+                  return (
+                    <span key={b.facilityId} className="inline-flex items-center gap-1 rounded-full bg-field-50 px-3 py-1 text-xs font-medium text-field-600">
+                      {name ?? b.facilityId.slice(0, 8)}: <Money value={b.outstanding} />
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {advances.advances.length > 0 && (
+              <div className="mt-4 overflow-hidden rounded-xl border border-field-100">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-field-100 bg-field-50/60 text-xs uppercase tracking-wide text-field-400">
+                        <th className="px-4 py-3 font-semibold">{t("Date")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Facility")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Amount")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Method")}</th>
+                        <th className="px-4 py-3 font-semibold">{t("Notes")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {advances.advances.map((a) => (
+                        <tr key={a.id} className="border-b border-field-50 last:border-0">
+                          <Td>{fmtDate(a.advance_date)}</Td>
+                          <Td className="font-medium text-field-800">{a.facility.name}</Td>
+                          <Td><Money value={a.amount} /></Td>
+                          <Td>{a.payment_method === "BANK_TRANSFER" ? t("Bank transfer") : t("Cash")}</Td>
+                          <Td className="text-field-500">{a.notes ?? "—"}</Td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
       {/* Step 1: Collect */}
       <Card title={t("Step 1 — Collect from facility")} subtitle={t("Receive the net payment in cash or by bank transfer")} className="mb-6">
         {canCollect ? (
@@ -255,6 +356,12 @@ export default function SupplierPaymentsPage() {
           </>
         )}
       </Card>
+
+      <SupplierAdvanceStatementModal
+        open={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        supplierId={user?.supplierId ?? ""}
+      />
     </div>
   );
 }

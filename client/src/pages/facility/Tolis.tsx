@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, updateToliLeader } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
 import { useI18n } from "../../i18n";
 import {
@@ -9,6 +9,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Modal,
   Money,
@@ -20,6 +21,7 @@ import {
   Td,
 } from "../../components/ui";
 import { fmtDate, todayInput } from "../../lib/format";
+import ResetPasswordModal from "../../components/ResetPasswordModal";
 
 interface DropOption {
   id: string;
@@ -40,6 +42,10 @@ interface ToliRow {
   };
   drop: { id: string; rent_per_drop: number } | null;
   supplier: { id: string; name: string } | null;
+  // Toli leader registry row
+  leader: { id: string; phone: string | null } | null;
+  // Linked toli-leader login account, if one exists
+  user: { id: string; name: string; email: string; phone: string | null } | null;
 }
 
 export default function TolisPage() {
@@ -48,9 +54,16 @@ export default function TolisPage() {
   const [tolis, setTolis] = useState<ToliRow[] | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [drops, setDrops] = useState<DropOption[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [resetTarget, setResetTarget] = useState<ToliRow["user"] | null>(null);
+  const [editTarget, setEditTarget] = useState<ToliRow | null>(null);
+  const [editForm, setEditForm] = useState({ leader_name: "", phone: "" });
+  const [editBusy, setEditBusy] = useState(false);
+  const [editNotice, setEditNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
     leader_name: "",
     worker_count: 0,
@@ -61,7 +74,9 @@ export default function TolisPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ tolis: ToliRow[]; total: number }>(`/facility/${fid}/tolis?page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ tolis: ToliRow[]; total: number }>(
+      `/facility/${fid}/tolis?page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+    ).then((r) => {
       setTolis(r.tolis);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
@@ -75,7 +90,7 @@ export default function TolisPage() {
         r.drops.map((d) => ({ id: d.drop.id, drop_date: d.drop.drop_date, supplier: d.supplier }))
       )
     );
-  }, [fid, page]);
+  }, [fid, page, q, status]);
 
   useEffect(load, [load]);
 
@@ -98,6 +113,35 @@ export default function TolisPage() {
     }
   }
 
+  function openEdit(r: ToliRow) {
+    setEditTarget(r);
+    setEditForm({
+      leader_name: r.toli.leader_name,
+      phone: r.leader?.phone ?? r.user?.phone ?? "",
+    });
+    setEditNotice(null);
+  }
+
+  async function handleEditSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!editTarget || !fid) return;
+    setEditNotice(null);
+    setEditBusy(true);
+    try {
+      await updateToliLeader(fid, editTarget.toli.id, {
+        leader_name: editForm.leader_name.trim(),
+        phone: editForm.phone.trim() || null,
+      });
+      setEditNotice({ kind: "success", text: t("Toli leader updated.") });
+      setEditTarget(null);
+      load();
+    } catch (err) {
+      setEditNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to update toli leader") });
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -106,13 +150,39 @@ export default function TolisPage() {
         action={<Button onClick={() => setShowModal(true)}>{t("+ Create toli")}</Button>}
       />
 
+      <div className="mb-4">
+        <ListFilters
+          search={q}
+          onSearch={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          status={status}
+          onStatus={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+          statusOptions={[
+            { value: "ACTIVE", label: t("Active") },
+            { value: "COMPLETED", label: t("Completed") },
+          ]}
+          searchPlaceholder={t("Search leader or supplier…")}
+        />
+      </div>
+
       {!tolis ? (
         <LoadingScreen />
       ) : tolis.length === 0 ? (
-        <Card><EmptyState title={t("No tolis yet")} hint={t("Create a toli under a supplier drop")} /></Card>
+        <Card>
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No tolis match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState title={t("No tolis yet")} hint={t("Create a toli under a supplier drop")} />
+          )}
+        </Card>
       ) : (
         <Card>
-          <Table head={[t("Leader"), t("Date"), t("Workers"), t("Day charge"), t("Drop"), t("Status")]} empty={null}>
+          <Table head={[t("Leader"), t("Date"), t("Workers"), t("Day charge"), t("Drop"), t("Status"), t("Actions")]} empty={null}>
             {tolis.map((r) => (
               <tr key={r.toli.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{r.toli.leader_name}</Td>
@@ -123,6 +193,18 @@ export default function TolisPage() {
                   {r.supplier ? t("{name} drop", { name: r.supplier.name }) : "—"}
                 </Td>
                 <Td><StatusBadge status={r.toli.status} /></Td>
+                <Td>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>
+                      {t("Edit")}
+                    </Button>
+                    {r.user ? (
+                      <Button size="sm" variant="secondary" onClick={() => setResetTarget(r.user)}>
+                        {t("Reset password")}
+                      </Button>
+                    ) : null}
+                  </div>
+                </Td>
               </tr>
             ))}
           </Table>
@@ -135,6 +217,65 @@ export default function TolisPage() {
           />
         </Card>
       )}
+
+      <ResetPasswordModal
+        open={resetTarget !== null}
+        onClose={() => setResetTarget(null)}
+        userId={resetTarget?.id ?? null}
+      />
+
+      <Modal open={editTarget !== null} onClose={() => setEditTarget(null)} title={t("Edit toli leader")}>
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <Field label={t("Leader name")}>
+            <Input
+              value={editForm.leader_name}
+              onChange={(e) => setEditForm({ ...editForm, leader_name: e.target.value })}
+              placeholder={t("e.g. Mahesh Kale")}
+              required
+            />
+          </Field>
+          <Field label={t("Phone")}>
+            <Input
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              placeholder="98xxxxxxxx"
+            />
+          </Field>
+
+          {editTarget?.user ? (
+            <p className="rounded-lg bg-onion-50 px-3 py-2 text-xs leading-relaxed text-onion-800">
+              {t("Linked login: {email} — name and phone stay in sync.", {
+                email: editTarget.user.email,
+              })}
+            </p>
+          ) : (
+            <p className="rounded-lg bg-field-50 px-3 py-2 text-xs leading-relaxed text-field-500">
+              {t("This leader has no login account yet — the name and phone are stored with the toli.")}
+            </p>
+          )}
+
+          {editNotice && (
+            <div
+              className={`animate-fade-in rounded-lg border px-3 py-2 text-xs font-medium ${
+                editNotice.kind === "success"
+                  ? "border-onion-200 bg-onion-50 text-onion-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {editNotice.text}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setEditTarget(null)}>
+              {t("Cancel")}
+            </Button>
+            <Button type="submit" loading={editBusy}>
+              {t("Save changes")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t("Create toli")}>
         <form onSubmit={handleSubmit} className="space-y-4">

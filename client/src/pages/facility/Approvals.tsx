@@ -9,6 +9,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Money,
   PageHeader,
@@ -40,22 +41,24 @@ export default function ApprovalsPage() {
   const { t } = useI18n();
   const [summaries, setSummaries] = useState<SummaryRow[] | null>(null);
   const [weekStart, setWeekStart] = useState(weekStartInput());
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ summaries: SummaryRow[]; total: number }>(`/facility/${fid}/weekly-summary?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then(
-      (r) => {
-        setSummaries(r.summaries);
-        setTotal(r.total);
-        if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
-          setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
-        }
+    api<{ summaries: SummaryRow[]; total: number }>(
+      `/facility/${fid}/weekly-summary?weekStart=${weekStart}&q=${encodeURIComponent(q)}&status=${status}&page=${page}&pageSize=${PAGE_SIZE}`
+    ).then((r) => {
+      setSummaries(r.summaries);
+      setTotal(r.total);
+      if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
+        setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
-    );
-  }, [fid, weekStart, page]);
+    });
+  }, [fid, weekStart, q, status, page]);
 
   useEffect(load, [load]);
 
@@ -105,16 +108,40 @@ export default function ApprovalsPage() {
             }}
           />
         </Field>
+        <div className="mt-3">
+          <ListFilters
+            search={q}
+            onSearch={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            status={status}
+            onStatus={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+            statusOptions={[
+              { value: "PENDING", label: t("Pending") },
+              { value: "APPROVED", label: t("Approved") },
+              { value: "REJECTED", label: t("Rejected") },
+            ]}
+            searchPlaceholder={t("Search toli leader or supplier…")}
+          />
+        </div>
       </Card>
 
       {!summaries ? (
         <LoadingScreen />
       ) : summaries.length === 0 ? (
         <Card>
-          <EmptyState
-            title={t("No summaries for this week")}
-            hint={t("Generate summaries from approved work entries")}
-          />
+          {q || status ? (
+            <EmptyState icon="🔍" title={t("No summaries match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState
+              title={t("No summaries for this week")}
+              hint={t("Generate summaries from approved work entries")}
+            />
+          )}
         </Card>
       ) : (
         <Card>

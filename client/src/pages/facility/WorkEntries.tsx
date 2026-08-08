@@ -10,6 +10,7 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
   Modal,
   Money,
@@ -57,6 +58,8 @@ export default function WorkEntriesPage() {
   const [entries, setEntries] = useState<EntryRow[] | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [tolis, setTolis] = useState<ToliOption[]>([]);
   const [bagSizes, setBagSizes] = useState<BagOption[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
@@ -75,14 +78,16 @@ export default function WorkEntriesPage() {
 
   const load = useCallback(() => {
     if (!fid) return;
-    api<{ entries: EntryRow[]; total: number }>(`/facility/${fid}/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}`).then((r) => {
+    api<{ entries: EntryRow[]; total: number }>(
+      `/facility/${fid}/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${statusFilter}`
+    ).then((r) => {
       setEntries(r.entries);
       setTotal(r.total);
       if (page > Math.max(1, Math.ceil(r.total / PAGE_SIZE))) {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [fid, weekStart, page]);
+  }, [fid, weekStart, page, q, statusFilter]);
 
   useEffect(load, [load]);
 
@@ -150,12 +155,38 @@ export default function WorkEntriesPage() {
             }}
           />
         </Field>
+        <div className="mt-4">
+          <ListFilters
+            search={q}
+            onSearch={(v) => {
+              setQ(v);
+              setPage(1);
+            }}
+            status={statusFilter}
+            onStatus={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+            statusOptions={[
+              { value: "DRAFT", label: t("Draft") },
+              { value: "APPROVED", label: t("Approved") },
+              { value: "PAID", label: t("Paid") },
+            ]}
+            searchPlaceholder={t("Search toli leader…")}
+          />
+        </div>
       </Card>
 
       {!entries ? (
         <LoadingScreen />
       ) : entries.length === 0 ? (
-        <Card><EmptyState title={t("No work entries this week")} hint={t("Record the first work entry")} /></Card>
+        <Card>
+          {q || statusFilter ? (
+            <EmptyState icon="🔍" title={t("No work entries match")} hint={t("Try a different search or status filter")} />
+          ) : (
+            <EmptyState title={t("No work entries this week")} hint={t("Record the first work entry")} />
+          )}
+        </Card>
       ) : (
         <Card>
           <Table head={[t("Date"), t("Toli"), t("Bag size"), t("Category"), t("Qty"), t("Rate"), t("Amount"), t("Status"), t("Leader OK"), t("Action")]} empty={null}>
