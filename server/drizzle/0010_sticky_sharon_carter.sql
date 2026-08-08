@@ -1,0 +1,21 @@
+ALTER TABLE "bag_sizes" ALTER COLUMN "weight_kg" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "dispatch_items" ALTER COLUMN "rate_per_bag" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "dispatch_items" ALTER COLUMN "total_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "order_payments" ALTER COLUMN "amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "rates" ALTER COLUMN "rate_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "sales_order_items" ALTER COLUMN "rate_per_bag" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "sales_order_items" ALTER COLUMN "total_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "sales_orders" ALTER COLUMN "total_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "subscription_payments" ALTER COLUMN "amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_advances" ALTER COLUMN "amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payment_distributions" ALTER COLUMN "amount_distributed" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ALTER COLUMN "total_worker_earnings" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ALTER COLUMN "total_rent_charges" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ALTER COLUMN "net_payment" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ALTER COLUMN "advance_deducted" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "supplier_payments" ALTER COLUMN "advance_balance_before" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "weekly_work_summaries" ALTER COLUMN "total_work_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "weekly_work_summaries" ALTER COLUMN "daily_charge_agreed_amount" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "weekly_work_summaries" ALTER COLUMN "total_earnings" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "work_entries" ALTER COLUMN "rate_per_bag" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "work_entries" ALTER COLUMN "total_amount" SET DATA TYPE double precision;

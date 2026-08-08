@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true, // 0.0.0.0 — Freebuff injects PORT
-    port: 5173,
+    // Use the injected PORT when present (Freebuff preview), else 3000 (npm run dev).
+    port: process.env.PORT ? Number(process.env.PORT) : 3000,
     proxy: {
       "/api": {
         target: process.env.VITE_API_TARGET ?? "http://127.0.0.1:3001",
