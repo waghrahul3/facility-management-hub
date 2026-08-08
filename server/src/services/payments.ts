@@ -13,6 +13,7 @@ import {
 } from "../db/schema.js";
 import { endOfWeek, startOfWeek } from "../lib/date.js";
 import { badRequest } from "../lib/errors.js";
+import { roundMoney } from "../lib/format.js";
 
 /**
  * A query client that can be either the global `db` or an in-flight
@@ -92,7 +93,7 @@ export async function computeToliWeekSummary(
   // Only APPROVED / PAID entries count toward earnings
   const counted = entries.filter((e) => e.status === "APPROVED" || e.status === "PAID");
   const totalBags = counted.reduce((s, e) => s + e.quantity_bags, 0);
-  const totalWorkAmount = counted.reduce((s, e) => s + e.total_amount, 0);
+  const totalWorkAmount = roundMoney(counted.reduce((s, e) => s + e.total_amount, 0));
 
   // Day charge is charged once per distinct working day
   const workingDays = new Set(
@@ -120,7 +121,7 @@ export async function computeToliWeekSummary(
     totalWorkAmount,
     dailyChargeDays: workingDays,
     dailyChargeAgreedAmount: dailyChargeAgreed,
-    totalEarnings: totalWorkAmount + dailyChargeAgreed,
+    totalEarnings: roundMoney(totalWorkAmount + dailyChargeAgreed),
   };
 }
 
@@ -243,9 +244,8 @@ export async function computeSupplierWeekPayment(
       )
     );
 
-  const totalWorkerEarnings = approvedSummaries.reduce(
-    (s, x) => s + x.total_earnings,
-    0
+  const totalWorkerEarnings = roundMoney(
+    approvedSummaries.reduce((s, x) => s + x.total_earnings, 0)
   );
   const totalRentCharges = drops.reduce((s, d) => s + d.rent_per_drop, 0);
 
@@ -255,7 +255,7 @@ export async function computeSupplierWeekPayment(
     totalWorkerEarnings,
     totalDrops: drops.length,
     totalRentCharges,
-    netPayment: totalWorkerEarnings - totalRentCharges,
+    netPayment: roundMoney(totalWorkerEarnings - totalRentCharges),
   };
 }
 
@@ -288,7 +288,7 @@ export async function outstandingAdvance(
     );
   const given = advances.reduce((s, a) => s + a.amount, 0);
   const back = recovered.reduce((s, p) => s + (p.amount ?? 0), 0);
-  return Math.max(0, given - back);
+  return Math.max(0, roundMoney(given - back));
 }
 
 /**
@@ -350,9 +350,9 @@ export async function processSupplierPayments(
       if (existing && existing.collection_status !== "PENDING") continue;
 
       const balanceBefore = await outstandingAdvance(facilityId, supplierId, tx);
-      const requested = Math.max(0, Math.floor(Number(advanceDeductions[supplierId] ?? 0)));
-      const advanceDeducted = Math.min(requested, balanceBefore, Math.max(0, payment.netPayment));
-      const netPayment = payment.netPayment - advanceDeducted;
+      const requested = Math.max(0, roundMoney(Number(advanceDeductions[supplierId] ?? 0)));
+      const advanceDeducted = roundMoney(Math.min(requested, balanceBefore, Math.max(0, payment.netPayment)));
+      const netPayment = roundMoney(payment.netPayment - advanceDeducted);
 
       await tx
         .insert(supplierPayments)

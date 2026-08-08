@@ -5,6 +5,7 @@ import { bagSizes, tolis, workEntries } from "../../db/schema.js";
 import { requireFacilityAccess, requireRole } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
+import { roundMoney } from "../../lib/format.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 import { resolveRateForBagSize } from "../../services/payments.js";
@@ -106,7 +107,7 @@ router.post(
         bag_size_id,
         quantity_bags,
         rate_per_bag: rate,
-        total_amount: rate * quantity_bags,
+        total_amount: roundMoney(rate * quantity_bags),
         onion_category: onion_category || null,
         notes: notes ?? null,
       })
