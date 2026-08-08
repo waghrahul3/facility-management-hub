@@ -136,6 +136,19 @@ export default function TolisPage() {
     setEditNotice(null);
   }
 
+  // The drop dropdown follows the selected date: only show drops that
+  // happened on that day. The edit form keeps the currently linked drop
+  // selectable even if its stored date no longer matches.
+  const dropDay = (d: DropOption) => toDateInputValue(new Date(d.drop_date));
+  const dropsOnDate = drops.filter((d) => dropDay(d) === form.date);
+  const editDropsOnDate = drops.filter((d) => dropDay(d) === editForm.date);
+  const editDropOptions =
+    editForm.drop_id && !editDropsOnDate.some((d) => d.id === editForm.drop_id)
+      ? [...editDropsOnDate, drops.find((d) => d.id === editForm.drop_id)].filter(
+          (d): d is DropOption => !!d
+        )
+      : editDropsOnDate;
+
   async function handleEditSubmit(e: FormEvent) {
     e.preventDefault();
     if (!editTarget || !fid) return;
@@ -274,13 +287,29 @@ export default function TolisPage() {
             </Field>
           </div>
           <Field label={t("Date")}>
-            <Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} required />
+            <Input
+              type="date"
+              value={editForm.date}
+              onChange={(e) => {
+                const date = e.target.value;
+                setEditForm((f) => ({
+                  ...f,
+                  date,
+                  drop_id:
+                    f.drop_id &&
+                    drops.some((d) => d.id === f.drop_id && dropDay(d) === date)
+                      ? f.drop_id
+                      : "",
+                }));
+              }}
+              required
+            />
           </Field>
           <Field label={t("Supplier drop (optional)")}>
             <SearchableSelect
               value={editForm.drop_id}
               onChange={(v) => setEditForm({ ...editForm, drop_id: v })}
-              options={drops.map((d) => ({
+              options={editDropOptions.map((d) => ({
                 value: d.id,
                 label: `${d.supplier?.name ?? t("Unknown supplier")} — ${fmtDate(d.drop_date)}`,
               }))}
@@ -288,6 +317,11 @@ export default function TolisPage() {
               searchPlaceholder={t("Search drops…")}
               allowClear
             />
+            {editDropsOnDate.length === 0 && (
+              <p className="mt-1 text-xs text-field-500">
+                {t("No drops registered for this date — register the supplier drop first.")}
+              </p>
+            )}
           </Field>
           <Field label={t("Status")}>
             <Select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "ACTIVE" | "COMPLETED" })}>
@@ -345,13 +379,29 @@ export default function TolisPage() {
             </Field>
           </div>
           <Field label={t("Date")}>
-            <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            <Input
+              type="date"
+              value={form.date}
+              onChange={(e) => {
+                const date = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  date,
+                  drop_id:
+                    f.drop_id &&
+                    drops.some((d) => d.id === f.drop_id && dropDay(d) === date)
+                      ? f.drop_id
+                      : "",
+                }));
+              }}
+              required
+            />
           </Field>
           <Field label={t("Supplier drop (optional)")}>
             <SearchableSelect
               value={form.drop_id}
               onChange={(v) => setForm({ ...form, drop_id: v })}
-              options={drops.map((d) => ({
+              options={dropsOnDate.map((d) => ({
                 value: d.id,
                 label: `${d.supplier?.name ?? t("Unknown supplier")} — ${fmtDate(d.drop_date)}`,
               }))}
@@ -359,6 +409,11 @@ export default function TolisPage() {
               searchPlaceholder={t("Search drops…")}
               allowClear
             />
+            {dropsOnDate.length === 0 && (
+              <p className="mt-1 text-xs text-field-500">
+                {t("No drops registered for this date — register the supplier drop first.")}
+              </p>
+            )}
           </Field>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>

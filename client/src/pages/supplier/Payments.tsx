@@ -49,20 +49,27 @@ interface MyAdvances {
 }
 
 interface PaymentPending {
+  /** Computed preview from approved summaries + drops (no id / no collection_status). */
   payment: {
+    supplierId: string;
+    supplierName: string;
+    totalWorkerEarnings: number;
+    totalDrops: number;
+    totalRentCharges: number;
+    netPayment: number;
+  } | null;
+  /** The actual supplier_payments row created by the facility admin. */
+  stored: {
     id: string;
     net_payment: number;
     total_worker_earnings: number;
     total_drops: number;
     total_rent_charges: number;
+    advance_deducted: number | null;
+    advance_balance_before: number | null;
     collection_status: string;
     payment_method: string | null;
-  } | null;
-  stored: {
-    id: string;
-    net_payment: number;
-    collection_status: string;
-    payment_method: string | null;
+    collection_date: string | null;
   } | null;
 }
 
@@ -83,7 +90,7 @@ export default function SupplierPaymentsPage() {
     api<ThisWeek>("/supplier/this-week").then(setWeek);
     api<PaymentPending>("/supplier/payment-pending").then((r) => {
       setPending(r);
-      if (r.payment) {
+      if (r.stored) {
         setDistributions({});
       }
     });
@@ -94,34 +101,36 @@ export default function SupplierPaymentsPage() {
 
   if (!week || !pending) return <LoadingScreen label={t("Loading payment details…")} />;
 
-  const payment = pending.payment ?? pending.stored;
-  const collectionStatus = payment?.collection_status ?? "PENDING";
+  const preview = pending.payment;
+  const stored = pending.stored;
+  const collectionStatus = stored?.collection_status ?? "PENDING";
+  const netToCollect = stored?.net_payment ?? preview?.netPayment ?? week.netPayment;
   const totalDistributed = Object.values(distributions).reduce((s, v) => s + (Number(v) || 0), 0);
-  const remaining = (payment?.net_payment ?? 0) - totalDistributed;
+  const remaining = netToCollect - totalDistributed;
   const approvedSummaries = week.summaries.filter((s) => s.summary.approval_status === "APPROVED");
 
   const collect = async () => {
-    const pay = pending?.payment;
-    if (!pay) return;
+    if (!stored) return;
     setBusy(true);
     setNotice(null);
     try {
       await post("/supplier/collect-payment", {
-        payment_id: pay.id,
+        payment_id: stored.id,
         payment_method: method,
         notes: notes || null,
       });
       setNotice(t("Payment marked as collected from the facility. Now distribute to workers."));
       load();
+    } catch (err) {
+      setNotice(t("Collect failed: {message}", { message: err instanceof Error ? err.message : "" }));
     } finally {
       setBusy(false);
     }
   };
 
   const distribute = async () => {
-    const pay = pending?.payment;
-    if (!pay) return;
-    if (totalDistributed > pay.net_payment) {
+    if (!stored) return;
+    if (totalDistributed > stored.net_payment) {
       setNotice(t("Distribution total exceeds the net payment!"));
       return;
     }
@@ -129,7 +138,7 @@ export default function SupplierPaymentsPage() {
     setNotice(null);
     try {
       await post("/supplier/distribute-payment", {
-        payment_id: pay.id,
+        payment_id: stored.id,
         distributions: approvedSummaries.map((s) => ({
           toli_id: s.toli.id,
           amount: Number(distributions[s.toli.id] ?? s.summary.total_earnings),
@@ -139,13 +148,15 @@ export default function SupplierPaymentsPage() {
       });
       setNotice(t("Distribution recorded. Payment marked DISTRIBUTED_TO_WORKERS."));
       load();
+    } catch (err) {
+      setNotice(t("Distribution failed: {message}", { message: err instanceof Error ? err.message : "" }));
     } finally {
       setBusy(false);
     }
   };
 
-  const canCollect = collectionStatus === "PENDING" && !!pending.payment;
-  const canDistribute = collectionStatus === "COLLECTED_FROM_FACILITY" && !!pending.payment;
+  const canCollect = collectionStatus === "PENDING" && !!stored;
+  const canDistribute = collectionStatus === "COLLECTED_FROM_FACILITY" && !!stored;
 
   return (
     <div>
@@ -185,7 +196,7 @@ export default function SupplierPaymentsPage() {
           <div className="rounded-xl bg-onion-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-onion-600">{t("Net to collect")}</p>
             <p className="mt-1 font-display text-xl font-bold text-onion-800">
-              <Money value={payment?.net_payment ?? week.netPayment} />
+              <Money value={netToCollect} />
             </p>
           </div>
         </div>
@@ -297,13 +308,13 @@ export default function SupplierPaymentsPage() {
               </Field>
             </div>
             <Button variant="success" onClick={collect} loading={busy}>
-              {t("Mark collected — ₹{amount}", { amount: payment?.net_payment?.toLocaleString("en-IN") ?? "0" })}
+              {t("Mark collected — ₹{amount}", { amount: netToCollect.toLocaleString("en-IN") })}
             </Button>
           </div>
         ) : collectionStatus === "COLLECTED_FROM_FACILITY" ? (
           <div className="rounded-lg bg-onion-50 px-4 py-3 text-sm text-onion-800">
             {t("✅ Collected{via}. Proceed to distribution below.", {
-              via: payment?.payment_method ? ` via ${payment.payment_method.replace("_", " ")}` : "",
+              via: stored?.payment_method ? ` via ${stored.payment_method.replace("_", " ")}` : "",
             })}
           </div>
         ) : (
