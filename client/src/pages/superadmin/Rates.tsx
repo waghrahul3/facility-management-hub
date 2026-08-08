@@ -125,6 +125,7 @@ export default function RatesPage() {
             <Input
               type="number"
               min={0}
+              step="any"
               value={form.rate_amount}
               onChange={(e) => setForm({ ...form, rate_amount: Number(e.target.value) })}
               required

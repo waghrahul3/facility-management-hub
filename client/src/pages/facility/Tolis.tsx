@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post, updateToliLeader } from "../../lib/api";
+import { api, post, put, updateToliLeader } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
 import { useI18n } from "../../i18n";
 import {
@@ -16,11 +16,12 @@ import {
   PageHeader,
   Pagination,
   SearchableSelect,
+  Select,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
-import { fmtDate, todayInput } from "../../lib/format";
+import { fmtDate, toDateInputValue, todayInput } from "../../lib/format";
 import ResetPasswordModal from "../../components/ResetPasswordModal";
 
 interface DropOption {
@@ -61,7 +62,15 @@ export default function TolisPage() {
   const [busy, setBusy] = useState(false);
   const [resetTarget, setResetTarget] = useState<ToliRow["user"] | null>(null);
   const [editTarget, setEditTarget] = useState<ToliRow | null>(null);
-  const [editForm, setEditForm] = useState({ leader_name: "", phone: "" });
+  const [editForm, setEditForm] = useState({
+    leader_name: "",
+    phone: "",
+    worker_count: 0,
+    daily_charge: 0,
+    date: todayInput(),
+    drop_id: "",
+    status: "ACTIVE" as "ACTIVE" | "COMPLETED",
+  });
   const [editBusy, setEditBusy] = useState(false);
   const [editNotice, setEditNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
@@ -118,6 +127,11 @@ export default function TolisPage() {
     setEditForm({
       leader_name: r.toli.leader_name,
       phone: r.leader?.phone ?? r.user?.phone ?? "",
+      worker_count: r.toli.worker_count,
+      daily_charge: r.toli.daily_charge,
+      date: toDateInputValue(new Date(r.toli.date)),
+      drop_id: r.drop?.id ?? "",
+      status: r.toli.status,
     });
     setEditNotice(null);
   }
@@ -128,15 +142,25 @@ export default function TolisPage() {
     setEditNotice(null);
     setEditBusy(true);
     try {
+      // Leader name + phone stay in sync across the registry, toli row and
+      // any linked login account via the dedicated leader endpoint.
       await updateToliLeader(fid, editTarget.toli.id, {
         leader_name: editForm.leader_name.trim(),
         phone: editForm.phone.trim() || null,
       });
-      setEditNotice({ kind: "success", text: t("Toli leader updated.") });
+      // Operational fields update the toli row itself.
+      await put(`/facility/${fid}/tolis/${editTarget.toli.id}`, {
+        worker_count: Number(editForm.worker_count),
+        daily_charge: Number(editForm.daily_charge),
+        date: editForm.date,
+        drop_id: editForm.drop_id || null,
+        status: editForm.status,
+      });
+      setEditNotice({ kind: "success", text: t("Toli updated.") });
       setEditTarget(null);
       load();
     } catch (err) {
-      setEditNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to update toli leader") });
+      setEditNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to update toli") });
     } finally {
       setEditBusy(false);
     }
@@ -224,7 +248,7 @@ export default function TolisPage() {
         userId={resetTarget?.id ?? null}
       />
 
-      <Modal open={editTarget !== null} onClose={() => setEditTarget(null)} title={t("Edit toli leader")}>
+      <Modal open={editTarget !== null} onClose={() => setEditTarget(null)} title={t("Edit toli")}>
         <form onSubmit={handleEditSubmit} className="space-y-4">
           <Field label={t("Leader name")}>
             <Input
@@ -240,6 +264,36 @@ export default function TolisPage() {
               onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
               placeholder="98xxxxxxxx"
             />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("Worker count")}>
+              <Input type="number" min={0} value={editForm.worker_count} onChange={(e) => setEditForm({ ...editForm, worker_count: Number(e.target.value) })} required />
+            </Field>
+            <Field label={t("Day charge (₹)")}>
+              <Input type="number" min={0} step="any" value={editForm.daily_charge} onChange={(e) => setEditForm({ ...editForm, daily_charge: Number(e.target.value) })} required />
+            </Field>
+          </div>
+          <Field label={t("Date")}>
+            <Input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} required />
+          </Field>
+          <Field label={t("Supplier drop (optional)")}>
+            <SearchableSelect
+              value={editForm.drop_id}
+              onChange={(v) => setEditForm({ ...editForm, drop_id: v })}
+              options={drops.map((d) => ({
+                value: d.id,
+                label: `${d.supplier?.name ?? t("Unknown supplier")} — ${fmtDate(d.drop_date)}`,
+              }))}
+              placeholder={t("No drop")}
+              searchPlaceholder={t("Search drops…")}
+              allowClear
+            />
+          </Field>
+          <Field label={t("Status")}>
+            <Select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "ACTIVE" | "COMPLETED" })}>
+              <option value="ACTIVE">{t("Active")}</option>
+              <option value="COMPLETED">{t("Completed")}</option>
+            </Select>
           </Field>
 
           {editTarget?.user ? (

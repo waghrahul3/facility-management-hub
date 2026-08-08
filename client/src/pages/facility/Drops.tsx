@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, put } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
 import { useI18n } from "../../i18n";
 import {
@@ -17,11 +17,12 @@ import {
   PageHeader,
   Pagination,
   SearchableSelect,
+  Select,
   StatusBadge,
   Table,
   Td,
 } from "../../components/ui";
-import { fmtDate, todayInput, weekStartInput } from "../../lib/format";
+import { fmtDate, toDateInputValue, todayInput, weekStartInput } from "../../lib/format";
 import ExportButtons from "../../components/ExportButtons";
 
 interface Supplier {
@@ -70,6 +71,16 @@ export default function DropsPage() {
     total_workers_dropped: 0,
     rent_per_drop: 0,
   });
+  const [editTarget, setEditTarget] = useState<DropRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    supplier_id: "",
+    drop_date: todayInput(),
+    total_workers_dropped: 0,
+    rent_per_drop: 0,
+    status: "REGISTERED" as "REGISTERED" | "COMPLETED",
+  });
+  const [editBusy, setEditBusy] = useState(false);
+  const [editNotice, setEditNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [supplierBusy, setSupplierBusy] = useState(false);
   const [supplierForm, setSupplierForm] = useState(emptySupplierForm);
@@ -116,6 +127,44 @@ export default function DropsPage() {
       load();
     } finally {
       setBusy(false);
+    }
+  }
+
+  function openEdit(r: DropRow) {
+    setEditTarget(r);
+    setEditForm({
+      supplier_id: r.supplier?.id ?? "",
+      drop_date: toDateInputValue(new Date(r.drop.drop_date)),
+      total_workers_dropped: r.drop.total_workers_dropped,
+      rent_per_drop: r.drop.rent_per_drop,
+      status: r.drop.status,
+    });
+    setEditNotice(null);
+  }
+
+  async function handleEditSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!editTarget || !fid) return;
+    setEditBusy(true);
+    setEditNotice(null);
+    try {
+      await put(`/facility/${fid}/supplier-drops/${editTarget.drop.id}`, {
+        supplier_id: editForm.supplier_id,
+        drop_date: editForm.drop_date,
+        total_workers_dropped: Number(editForm.total_workers_dropped),
+        rent_per_drop: Number(editForm.rent_per_drop),
+        status: editForm.status,
+      });
+      setEditNotice({ kind: "success", text: t("Drop updated.") });
+      setEditTarget(null);
+      load();
+    } catch (err) {
+      setEditNotice({
+        kind: "error",
+        text: err instanceof Error ? err.message : t("Failed to update drop"),
+      });
+    } finally {
+      setEditBusy(false);
     }
   }
 
@@ -222,7 +271,7 @@ export default function DropsPage() {
         </Card>
       ) : (
         <Card>
-          <Table head={[t("Supplier"), t("Date"), t("Workers"), t("Rent / drop"), t("Status")]} empty={null}>
+          <Table head={[t("Supplier"), t("Date"), t("Workers"), t("Rent / drop"), t("Status"), t("Actions")]} empty={null}>
             {drops.map((r) => (
               <tr key={r.drop.id} className="hover:bg-field-50/50">
                 <Td className="font-semibold text-field-900">{r.supplier?.name ?? "—"}</Td>
@@ -230,6 +279,11 @@ export default function DropsPage() {
                 <Td>{r.drop.total_workers_dropped}</Td>
                 <Td><Money value={r.drop.rent_per_drop} /></Td>
                 <Td><StatusBadge status={r.drop.status} /></Td>
+                <Td>
+                  <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>
+                    {t("Edit")}
+                  </Button>
+                </Td>
               </tr>
             ))}
           </Table>
@@ -242,6 +296,58 @@ export default function DropsPage() {
           />
         </Card>
       )}
+
+      <Modal open={editTarget !== null} onClose={() => setEditTarget(null)} title={t("Edit drop")}>
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <Field label={t("Supplier")}>
+            <SearchableSelect
+              value={editForm.supplier_id}
+              onChange={(v) => setEditForm({ ...editForm, supplier_id: v })}
+              options={suppliers.map((s) => ({
+                value: s.id,
+                label: s.status === "PENDING" ? `${s.name} (pending login)` : s.name,
+              }))}
+              placeholder={t("Select supplier…")}
+              searchPlaceholder={t("Search suppliers…")}
+              required
+            />
+          </Field>
+          <Field label={t("Drop date")}>
+            <Input type="date" value={editForm.drop_date} onChange={(e) => setEditForm({ ...editForm, drop_date: e.target.value })} required />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("Workers dropped")}>
+              <Input type="number" min={0} value={editForm.total_workers_dropped} onChange={(e) => setEditForm({ ...editForm, total_workers_dropped: Number(e.target.value) })} required />
+            </Field>
+            <Field label={t("Rent per drop (₹)")} hint={t("Negotiated amount")}>
+              <Input type="number" min={0} step="any" value={editForm.rent_per_drop} onChange={(e) => setEditForm({ ...editForm, rent_per_drop: Number(e.target.value) })} required />
+            </Field>
+          </div>
+          <Field label={t("Status")}>
+            <Select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "REGISTERED" | "COMPLETED" })}>
+              <option value="REGISTERED">{t("Registered")}</option>
+              <option value="COMPLETED">{t("Completed")}</option>
+            </Select>
+          </Field>
+
+          {editNotice && (
+            <div
+              className={`animate-fade-in rounded-lg border px-3 py-2 text-xs font-medium ${
+                editNotice.kind === "success"
+                  ? "border-onion-200 bg-onion-50 text-onion-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {editNotice.text}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setEditTarget(null)}>{t("Cancel")}</Button>
+            <Button type="submit" loading={editBusy}>{t("Save changes")}</Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t("Register supplier drop")}>
         <form onSubmit={handleSubmit} className="space-y-4">

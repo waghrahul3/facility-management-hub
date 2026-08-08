@@ -107,13 +107,14 @@ router.put(
     )[0];
     if (!existing) throw notFound("Toli not found");
 
-    const { leader_name, worker_count, daily_charge, status, drop_id } = req.body ?? {};
+    const { leader_name, worker_count, daily_charge, date, status, drop_id } = req.body ?? {};
     const [updated] = await db
       .update(tolis)
       .set({
         leader_name: leader_name ?? existing.leader_name,
         worker_count: worker_count !== undefined ? worker_count : existing.worker_count,
         daily_charge: daily_charge !== undefined ? daily_charge : existing.daily_charge,
+        date: date !== undefined ? new Date(date) : existing.date,
         status: status ?? existing.status,
         drop_id: drop_id !== undefined ? drop_id : existing.drop_id,
         updated_at: new Date(),
