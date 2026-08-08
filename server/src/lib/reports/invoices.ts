@@ -1,12 +1,14 @@
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {
+  bagSizes,
   facilities,
   supplierDrops,
   supplierPayments,
   suppliers,
   tolis,
   weeklyWorkSummaries,
+  workEntries,
 } from "../../db/schema.js";
 import { startOfWeek, toISODate } from "../date.js";
 import { badRequest, forbidden, notFound } from "../errors.js";
@@ -126,6 +128,33 @@ export async function supplierInvoice(
     )
     .orderBy(asc(supplierDrops.drop_date));
 
+  // --- Date-wise work details (the toli entries behind the summaries) ------
+  const workDetails = await db
+    .select({
+      workDate: workEntries.work_date,
+      leader: tolis.leader_name,
+      bagSize: bagSizes.size_name,
+      category: workEntries.onion_category,
+      bags: workEntries.quantity_bags,
+      rate: workEntries.rate_per_bag,
+      amount: workEntries.total_amount,
+      status: workEntries.status,
+    })
+    .from(workEntries)
+    .innerJoin(tolis, eq(tolis.id, workEntries.toli_id))
+    .innerJoin(bagSizes, eq(bagSizes.id, workEntries.bag_size_id))
+    .innerJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
+    .where(
+      and(
+        eq(supplierDrops.supplier_id, supplierId),
+        eq(workEntries.facility_id, facilityId),
+        inArray(workEntries.status, ["APPROVED", "PAID"]),
+        gte(workEntries.work_date, weekStart),
+        lte(workEntries.work_date, weekEnd)
+      )
+    )
+    .orderBy(asc(workEntries.work_date), asc(tolis.leader_name));
+
   // --- Payment record (if processed) ---------------------------------------
   const payment = (
     await db
@@ -145,6 +174,8 @@ export async function supplierInvoice(
   const totalEarnings = summaries.reduce((s, x) => s + (x.summary.total_earnings ?? 0), 0);
   const totalRent = drops.reduce((s, x) => s + (x.rent_per_drop ?? 0), 0);
   const netPayment = totalEarnings - totalRent;
+  // The facility's total amount to pay for the week: drop rent + toli earnings.
+  const facilityTotal = totalEarnings + totalRent;
 
   const rows = summaries.map((r) => ({
     leader: r.toli.leader_name,
@@ -180,12 +211,13 @@ export async function supplierInvoice(
       earnings: totalEarnings,
       rent: totalRent,
       net: netPayment,
+      facilityTotal,
       drops: drops.length,
     },
     cards: [
       { label: "Worker earnings", value: money(totalEarnings), tone: "blue" },
       { label: "Drop rent", value: money(totalRent), tone: "amber" },
-      { label: "Net payment", value: money(netPayment), tone: netPayment >= 0 ? "green" : "red" },
+      { label: "Total to pay", value: money(facilityTotal), tone: "green" },
       { label: "Drops", value: String(drops.length), tone: "slate" },
     ],
     meta: {
@@ -207,6 +239,16 @@ export async function supplierInvoice(
       weekStart: toISODate(weekStart),
       weekEnd: toISODate(weekEnd),
       toliLines: rows,
+      workDetails: workDetails.map((w) => ({
+        workDate: toISODate(w.workDate),
+        leader: w.leader,
+        bagSize: w.bagSize,
+        category: w.category,
+        bags: w.bags,
+        rate: w.rate,
+        amount: w.amount,
+        status: w.status,
+      })),
       drops: drops.map((x) => ({
         id: x.id,
         dropDate: toISODate(x.drop_date),

@@ -20,6 +20,17 @@ interface InvoiceToliLine {
   status: string;
 }
 
+interface InvoiceWorkDetail {
+  workDate: string;
+  leader: string;
+  bagSize: string;
+  category: string | null;
+  bags: number;
+  rate: number;
+  amount: number;
+  status: string;
+}
+
 interface InvoiceDrop {
   id: string;
   dropDate: string;
@@ -48,6 +59,7 @@ interface InvoiceData {
     weekStart: string;
     weekEnd: string;
     toliLines: InvoiceToliLine[];
+    workDetails: InvoiceWorkDetail[];
     drops: InvoiceDrop[];
     payment: {
       status: string;
@@ -105,6 +117,9 @@ export default function SupplierInvoiceModal({
   }
 
   const m = data?.meta;
+  const earningsTotal = m ? m.toliLines.reduce((s, l) => s + l.earnings, 0) : 0;
+  const rentTotal = m ? m.drops.reduce((s, d) => s + d.rent, 0) : 0;
+  const totalToPay = earningsTotal + rentTotal;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-6">
@@ -245,6 +260,43 @@ export default function SupplierInvoiceModal({
                 </table>
               </div>
 
+              {/* Date-wise work details */}
+              {(m.workDetails ?? []).length > 0 && (
+                <div className="mt-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-field-400">
+                    {t("Date-wise work details")} ({m.workDetails.length})
+                  </p>
+                  <div className="mt-1.5 overflow-hidden rounded-xl border border-field-200">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-field-100 text-left text-[11px] uppercase tracking-wider text-field-600">
+                          <th className="px-3 py-2 font-semibold">{t("Date")}</th>
+                          <th className="px-3 py-2 font-semibold">{t("Toli / Leader")}</th>
+                          <th className="px-3 py-2 font-semibold">{t("Bag size")}</th>
+                          <th className="px-3 py-2 font-semibold">{t("Category")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{t("Bags")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{t("Rate")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{t("Amount")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-field-100">
+                        {m.workDetails.map((w, i) => (
+                          <tr key={i} className="bg-white">
+                            <td className="px-3 py-2">{fmtDate(w.workDate)}</td>
+                            <td className="px-3 py-2 font-medium">{w.leader}</td>
+                            <td className="px-3 py-2">{w.bagSize}</td>
+                            <td className="px-3 py-2">{w.category || <span className="text-field-300">—</span>}</td>
+                            <td className="px-3 py-2 text-right">{w.bags}</td>
+                            <td className="px-3 py-2 text-right">₹{w.rate.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                            <td className="px-3 py-2 text-right font-medium">₹{w.amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Drops + rent */}
               {m.drops.length > 0 && (
                 <div className="mt-5">
@@ -274,23 +326,21 @@ export default function SupplierInvoiceModal({
                 </div>
               )}
 
-              {/* Totals */}
+              {/* Totals — the facility's total amount to pay = drop rent + toli earnings */}
               <div className="mt-6 flex justify-end">
                 <div className="w-full max-w-xs space-y-1.5 text-sm">
                   <div className="flex justify-between px-3">
                     <span className="text-field-500">{t("Worker earnings")}</span>
-                    <span className="font-medium">₹{m.toliLines.reduce((s, l) => s + l.earnings, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+                    <span className="font-medium">₹{earningsTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between px-3">
                     <span className="text-field-500">{t("Drop rent")}</span>
-                    <span className="font-medium text-red-600">
-                      − ₹{m.drops.reduce((s, d) => s + d.rent, 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                    </span>
+                    <span className="font-medium text-amber-700">+ ₹{rentTotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between rounded-lg bg-onion-700 px-3 py-2.5 text-white">
-                    <span className="font-semibold">{t("Net payment")}</span>
+                    <span className="font-semibold">{t("Total to pay")}</span>
                     <span className="font-display font-bold">
-                      ₹{Math.max(0, m.toliLines.reduce((s, l) => s + l.earnings, 0) - m.drops.reduce((s, d) => s + d.rent, 0)).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      ₹{totalToPay.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
