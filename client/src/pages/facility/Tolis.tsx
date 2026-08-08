@@ -58,6 +58,9 @@ export default function TolisPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [drops, setDrops] = useState<DropOption[]>([]);
+  const [supplierOptions, setSupplierOptions] = useState<{ id: string; name: string }[]>([]);
+  const [supplierFilter, setSupplierFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetTarget, setResetTarget] = useState<ToliRow["user"] | null>(null);
@@ -84,7 +87,7 @@ export default function TolisPage() {
   const load = useCallback(() => {
     if (!fid) return;
     api<{ tolis: ToliRow[]; total: number }>(
-      `/facility/${fid}/tolis?page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${status}`
+      `/facility/${fid}/tolis?page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&supplier_id=${encodeURIComponent(supplierFilter)}&date=${encodeURIComponent(dateFilter)}`
     ).then((r) => {
       setTolis(r.tolis);
       setTotal(r.total);
@@ -99,7 +102,25 @@ export default function TolisPage() {
         r.drops.map((d) => ({ id: d.drop.id, drop_date: d.drop.drop_date, supplier: d.supplier }))
       )
     );
-  }, [fid, page, q, status]);
+    api<{ suppliers: { id: string; name: string }[] }>(`/facility/${fid}/suppliers`).then((r) =>
+      setSupplierOptions(r.suppliers)
+    );
+  }, [fid, page, q, status, supplierFilter, dateFilter]);
+
+  // Open the create modal on a date that actually has drops, so the drop
+  // dropdown is populated instead of empty (today may have no drops).
+  function openCreate() {
+    setForm((f) => {
+      const today = f.date;
+      const hasDropToday = drops.some((d) => dropDay(d) === today);
+      if (hasDropToday) return { ...f, drop_id: "" };
+      const latest = [...drops].sort(
+        (a, b) => new Date(b.drop_date).getTime() - new Date(a.drop_date).getTime()
+      )[0];
+      return { ...f, date: latest ? dropDay(latest) : today, drop_id: "" };
+    });
+    setShowModal(true);
+  }
 
   useEffect(load, [load]);
 
@@ -184,7 +205,7 @@ export default function TolisPage() {
       <PageHeader
         title={t("Tolis")}
         subtitle={t("Daily worker groups: leader, worker count, and day charge")}
-        action={<Button onClick={() => setShowModal(true)}>{t("+ Create toli")}</Button>}
+        action={<Button onClick={openCreate}>{t("+ Create toli")}</Button>}
       />
 
       <div className="mb-4">
@@ -207,11 +228,50 @@ export default function TolisPage() {
         />
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <SearchableSelect
+          value={supplierFilter}
+          onChange={(v) => {
+            setSupplierFilter(v);
+            setPage(1);
+          }}
+          options={supplierOptions.map((s) => ({ value: s.id, label: s.name }))}
+          placeholder={t("All suppliers")}
+          searchPlaceholder={t("Search suppliers…")}
+          allowClear
+          className="min-w-[200px] flex-1"
+        />
+        <Input
+          type="date"
+          value={dateFilter}
+          onChange={(e) => {
+            setDateFilter(e.target.value);
+            setPage(1);
+          }}
+          className="w-auto"
+          aria-label={t("Filter by date")}
+        />
+        {(supplierFilter || dateFilter) && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSupplierFilter("");
+              setDateFilter("");
+              setPage(1);
+            }}
+          >
+            {t("Clear")}
+          </Button>
+        )}
+      </div>
+
       {!tolis ? (
         <LoadingScreen />
       ) : tolis.length === 0 ? (
         <Card>
-          {q || status ? (
+          {q || status || supplierFilter || dateFilter ? (
             <EmptyState icon="🔍" title={t("No tolis match")} hint={t("Try a different search or status filter")} />
           ) : (
             <EmptyState title={t("No tolis yet")} hint={t("Create a toli under a supplier drop")} />

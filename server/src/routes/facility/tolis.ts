@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { supplierDrops, suppliers, toliLeaders, tolis, users } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
@@ -22,10 +22,16 @@ router.get(
     const query = req.query as Record<string, unknown>;
     const q = typeof query.q === "string" ? query.q.trim() : "";
     const status = typeof query.status === "string" ? query.status.trim() : "";
+    const supplierId = typeof query.supplier_id === "string" ? query.supplier_id.trim() : "";
+    const date = typeof query.date === "string" ? query.date.trim() : "";
     const where = and(
       eq(tolis.facility_id, param(req, "facilityId")),
       q ? or(ilike(tolis.leader_name, `%${q}%`), ilike(suppliers.name, `%${q}%`)) : undefined,
-      status ? eq(tolis.status, status as "ACTIVE" | "COMPLETED") : undefined
+      status ? eq(tolis.status, status as "ACTIVE" | "COMPLETED") : undefined,
+      supplierId ? eq(suppliers.id, supplierId) : undefined,
+      date
+        ? and(gte(tolis.date, new Date(`${date}T00:00:00`)), lte(tolis.date, new Date(`${date}T23:59:59.999`)))
+        : undefined
     );
     const rows = await db
       .select({
