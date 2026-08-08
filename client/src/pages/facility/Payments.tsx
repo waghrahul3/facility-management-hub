@@ -220,14 +220,18 @@ export default function PaymentsPage() {
   }
 
   const outstandingTotal = (pending ?? []).reduce((s, p) => s + (p.outstanding_advance ?? 0), 0);
-  const pendingNet = (pending ?? []).reduce((s, p) => s + p.payment.net_payment, 0);
+  // Collection total per supplier = worker earnings + rent charges
+  const collectionTotal = (pending ?? []).reduce(
+    (s, p) => s + p.payment.total_worker_earnings + p.payment.total_rent_charges,
+    0
+  );
   const hasOutstanding = (pending ?? []).some((p) => (p.outstanding_advance ?? 0) > 0);
 
   return (
     <div>
       <PageHeader
         title={t("Sunday Payments")}
-        subtitle={t("Calculate net payments: worker earnings − supplier rent charges − advance recovery")}
+        subtitle={t("Collection total per supplier = worker earnings + rent charges")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <ExportButtons reportType="payments" filters={{ from: weekStart }} />
@@ -256,7 +260,7 @@ export default function PaymentsPage() {
         </Field>
       </Card>
 
-      <Card title={t("Pending collections")} subtitle={t("Net payment each supplier will collect from the facility")}>
+      <Card title={t("Pending collections")} subtitle={t("Worker earnings + rent charges each supplier will collect from the facility")}>
         {!pending ? (
           <LoadingScreen />
         ) : pending.length === 0 ? (
@@ -264,7 +268,7 @@ export default function PaymentsPage() {
         ) : (
           <>
             <Table
-              head={[t("Supplier"), t("Worker earnings"), t("Drops"), t("Rent charges"), t("Advance"), t("Net payment"), t("Status"), t("Invoice")]}
+              head={[t("Supplier"), t("Worker earnings"), t("Drops"), t("Rent charges"), t("Collection total"), t("Status"), t("Invoice")]}
               empty={null}
             >
               {pending.map((r) => (
@@ -272,15 +276,10 @@ export default function PaymentsPage() {
                   <Td className="font-semibold text-field-900">{r.supplier.name}</Td>
                   <Td><Money value={r.payment.total_worker_earnings} /></Td>
                   <Td>{r.payment.total_drops}</Td>
-                  <Td className="text-red-600">− <Money value={r.payment.total_rent_charges} /></Td>
-                  <Td>
-                    {(r.outstanding_advance ?? 0) > 0 ? (
-                      <span className="text-amber-700">− <Money value={r.outstanding_advance} /> <span className="text-[10px] uppercase text-field-400">({t("advance")})</span></span>
-                    ) : (
-                      <span className="text-field-300">—</span>
-                    )}
+                  <Td className="text-onion-700">+ <Money value={r.payment.total_rent_charges} /></Td>
+                  <Td className="font-bold text-onion-800">
+                    <Money value={r.payment.total_worker_earnings + r.payment.total_rent_charges} />
                   </Td>
-                  <Td className="font-bold text-onion-800"><Money value={r.payment.net_payment} /></Td>
                   <Td><StatusBadge status={r.payment.collection_status} /></Td>
                   <Td>
                     <Button
@@ -296,8 +295,8 @@ export default function PaymentsPage() {
             </Table>
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <p className="text-xs text-field-500">
-                {t("Total net to collect:")}{" "}
-                <span className="font-semibold text-field-800"><Money value={pendingNet} /></span>
+                {t("Total collection:")}{" "}
+                <span className="font-semibold text-onion-800"><Money value={collectionTotal} /></span>
                 {hasOutstanding && (
                   <>
                     {" · "}
@@ -401,7 +400,7 @@ export default function PaymentsPage() {
             )
           ) : (
             <Table
-              head={[t("Week"), t("Supplier"), t("Earnings"), t("Rent"), t("Advance"), t("Net"), t("Method"), t("Status"), t("Invoice")]}
+              head={[t("Week"), t("Supplier"), t("Earnings"), t("Rent"), t("Advance"), t("Collection total"), t("Method"), t("Status"), t("Invoice")]}
               empty={null}
             >
               {history.map((r) => (
@@ -409,7 +408,7 @@ export default function PaymentsPage() {
                   <Td>{r.payment.week_start_date.slice(0, 10)}</Td>
                   <Td className="font-medium">{r.supplier.name}</Td>
                   <Td><Money value={r.payment.total_worker_earnings} /></Td>
-                  <Td>− <Money value={r.payment.total_rent_charges} /></Td>
+                  <Td className="text-onion-700">+ <Money value={r.payment.total_rent_charges} /></Td>
                   <Td>
                     {r.payment.advance_deducted > 0 ? (
                       <span className="text-amber-700">− <Money value={r.payment.advance_deducted} /></span>
@@ -417,7 +416,9 @@ export default function PaymentsPage() {
                       <span className="text-field-300">—</span>
                     )}
                   </Td>
-                  <Td className="font-semibold"><Money value={r.payment.net_payment} /></Td>
+                  <Td className="font-bold text-onion-800">
+                    <Money value={r.payment.total_worker_earnings + r.payment.total_rent_charges} />
+                  </Td>
                   <Td>{r.payment.payment_method ?? "—"}</Td>
                   <Td>
                     <Badge tone={r.payment.collection_status === "PENDING" ? "amber" : "green"}>
