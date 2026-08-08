@@ -99,10 +99,12 @@ router.put(
     )[0];
     if (!existing) throw notFound("Drop not found");
 
-    const { total_workers_dropped, rent_per_drop, status } = req.body ?? {};
+    const { supplier_id, drop_date, total_workers_dropped, rent_per_drop, status } = req.body ?? {};
     const [updated] = await db
       .update(supplierDrops)
       .set({
+        supplier_id: supplier_id !== undefined ? supplier_id : existing.supplier_id,
+        drop_date: drop_date !== undefined ? new Date(drop_date) : existing.drop_date,
         total_workers_dropped:
           total_workers_dropped !== undefined ? total_workers_dropped : existing.total_workers_dropped,
         rent_per_drop: rent_per_drop !== undefined ? rent_per_drop : existing.rent_per_drop,

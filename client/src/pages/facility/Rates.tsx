@@ -98,7 +98,7 @@ export default function FacilityRatesPage() {
                 />
               </Field>
               <Field label={t("Facility rate (₹)")}>
-                <Input type="number" min={0} value={form.rate_amount} onChange={(e) => setForm({ ...form, rate_amount: Number(e.target.value) })} required />
+                <Input type="number" min={0} step="any" value={form.rate_amount} onChange={(e) => setForm({ ...form, rate_amount: Number(e.target.value) })} required />
               </Field>
               <Button type="submit">{t("Save facility rate")}</Button>
             </form>

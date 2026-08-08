@@ -102,7 +102,8 @@ export default function BagSizesPage() {
           <Field label={t("Weight (kg)")}>
             <Input
               type="number"
-              min={1}
+              min={0.1}
+              step="any"
               value={form.weight_kg}
               onChange={(e) => setForm({ ...form, weight_kg: Number(e.target.value) })}
               required
