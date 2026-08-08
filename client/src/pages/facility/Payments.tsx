@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post, listFacilityAdvances, recordAdvance, deleteAdvance } from "../../lib/api";
+import { api, post, put, listFacilityAdvances, recordAdvance, deleteAdvance } from "../../lib/api";
 import type { FacilityAdvanceRow } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
 import { useI18n } from "../../i18n";
@@ -18,7 +18,7 @@ import {
   PageHeader,
   Pagination,
   SearchableSelect,
-  StatusBadge,
+  Select,
   Table,
   Td,
 } from "../../components/ui";
@@ -84,6 +84,9 @@ export default function PaymentsPage() {
   // Process modal — per-supplier advance deduction
   const [showProcess, setShowProcess] = useState(false);
   const [deductions, setDeductions] = useState<Record<string, number>>({});
+
+  // Admin status override
+  const [changingStatus, setChangingStatus] = useState<string | null>(null);
 
   // Advances ledger
   const [advances, setAdvances] = useState<FacilityAdvanceRow[]>([]);
@@ -193,6 +196,34 @@ export default function PaymentsPage() {
     }
   }
 
+  const paymentStatusLabel = (s: string) =>
+    t(
+      s === "PENDING"
+        ? "Pending"
+        : s === "COLLECTED_FROM_FACILITY"
+          ? "Collected from facility"
+          : "Distributed to workers"
+    );
+
+  async function changeStatus(paymentId: string, supplierName: string, next: string) {
+    if (!fid) return;
+    const label = paymentStatusLabel(next);
+    if (!confirm(t("Change {name}'s payment status to {status}?", { name: supplierName, status: label }))) {
+      return;
+    }
+    setChangingStatus(paymentId);
+    setNotice(null);
+    try {
+      await put(`/facility/${fid}/payments/${paymentId}/status`, { status: next });
+      setNotice({ kind: "success", text: t("Payment status updated to {status}.", { status: label }) });
+      load();
+    } catch (err) {
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Failed to update payment status") });
+    } finally {
+      setChangingStatus(null);
+    }
+  }
+
   async function processSunday() {
     if (!fid) return;
     setBusy(true);
@@ -280,7 +311,19 @@ export default function PaymentsPage() {
                   <Td className="font-bold text-onion-800">
                     <Money value={r.payment.total_worker_earnings + r.payment.total_rent_charges} />
                   </Td>
-                  <Td><StatusBadge status={r.payment.collection_status} /></Td>
+                  <Td>
+                    <Select
+                      value={r.payment.collection_status}
+                      disabled={changingStatus === r.payment.id}
+                      onChange={(e) => changeStatus(r.payment.id, r.supplier.name, e.target.value)}
+                      className="w-auto cursor-pointer text-xs"
+                      aria-label={t("Payment status")}
+                    >
+                      <option value="PENDING">{t("Pending")}</option>
+                      <option value="COLLECTED_FROM_FACILITY">{t("Collected from facility")}</option>
+                      <option value="DISTRIBUTED_TO_WORKERS">{t("Distributed to workers")}</option>
+                    </Select>
+                  </Td>
                   <Td>
                     <Button
                       size="sm"
@@ -421,9 +464,17 @@ export default function PaymentsPage() {
                   </Td>
                   <Td>{r.payment.payment_method ?? "—"}</Td>
                   <Td>
-                    <Badge tone={r.payment.collection_status === "PENDING" ? "amber" : "green"}>
-                      {r.payment.collection_status.replace(/_/g, " ")}
-                    </Badge>
+                    <Select
+                      value={r.payment.collection_status}
+                      disabled={changingStatus === r.payment.id}
+                      onChange={(e) => changeStatus(r.payment.id, r.supplier.name, e.target.value)}
+                      className="w-auto cursor-pointer text-xs"
+                      aria-label={t("Payment status")}
+                    >
+                      <option value="PENDING">{t("Pending")}</option>
+                      <option value="COLLECTED_FROM_FACILITY">{t("Collected from facility")}</option>
+                      <option value="DISTRIBUTED_TO_WORKERS">{t("Distributed to workers")}</option>
+                    </Select>
                   </Td>
                   <Td>
                     <Button

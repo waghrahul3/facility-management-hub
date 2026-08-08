@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { and, count, desc, eq, ilike } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { suppliers, supplierPayments } from "../../db/schema.js";
+import { suppliers, supplierPaymentDistributions, supplierPayments } from "../../db/schema.js";
 import { requireFacilityAccess } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
-import { asyncHandler } from "../../lib/errors.js";
+import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
 import { param } from "../../lib/params.js";
 import {
@@ -124,6 +124,72 @@ router.post(
       newValues: { weekStart, advanceDeductions, results },
     });
     return res.json({ processed: results });
+  })
+);
+
+const PAYMENT_STATUSES = ["PENDING", "COLLECTED_FROM_FACILITY", "DISTRIBUTED_TO_WORKERS"] as const;
+type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+// Facility/company admins can override a payment's collection status — e.g.
+// reset a mistaken collect, or record that cash was handed over offline.
+router.put(
+  "/:facilityId/payments/:paymentId/status",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const { status } = req.body ?? {};
+    if (!PAYMENT_STATUSES.includes(status as PaymentStatus)) {
+      throw badRequest("status must be PENDING, COLLECTED_FROM_FACILITY or DISTRIBUTED_TO_WORKERS");
+    }
+
+    const existing = (
+      await db
+        .select()
+        .from(supplierPayments)
+        .where(eq(supplierPayments.id, param(req, "paymentId")))
+        .limit(1)
+    )[0];
+    if (!existing || existing.facility_id !== param(req, "facilityId")) {
+      throw notFound("Payment not found");
+    }
+
+    // Moving a settled payment backward removes its distribution records so
+    // the supplier can redo the distribution cleanly.
+    if (
+      (status === "PENDING" || status === "COLLECTED_FROM_FACILITY") &&
+      existing.collection_status === "DISTRIBUTED_TO_WORKERS"
+    ) {
+      await db
+        .delete(supplierPaymentDistributions)
+        .where(eq(supplierPaymentDistributions.supplier_payment_id, existing.id));
+    }
+
+    const [updated] = await db
+      .update(supplierPayments)
+      .set({
+        collection_status: status as PaymentStatus,
+        collection_date:
+          status === "PENDING"
+            ? null
+            : status === "COLLECTED_FROM_FACILITY"
+              ? (existing.collection_date ?? new Date())
+              : existing.collection_date,
+        payment_method: status === "PENDING" ? null : existing.payment_method,
+        updated_at: new Date(),
+      })
+      .where(eq(supplierPayments.id, existing.id))
+      .returning();
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "SUPPLIER_PAYMENT",
+      entityId: existing.id,
+      oldValues: { collection_status: existing.collection_status },
+      newValues: { collection_status: status },
+    });
+    return res.json({ payment: updated });
   })
 );
 
