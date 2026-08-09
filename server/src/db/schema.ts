@@ -319,8 +319,10 @@ export const workEntries = pgTable(
     rate_per_bag: doublePrecision("rate_per_bag").notNull(),
     total_amount: doublePrecision("total_amount").notNull(),
     status: workEntryStatusEnum("status").default("DRAFT").notNull(),
-    // Toli leader confirmation timestamp (leader accepts the recorded work)
-    leader_confirmed_at: timestamp("leader_confirmed_at", { withTimezone: true }),
+    // Toli leader confirmation timestamp (leader accepts the recorded work).
+    // Every work entry is leader-approved by default — admins record the work,
+    // so the leader's confirmation is treated as given at creation time.
+    leader_confirmed_at: timestamp("leader_confirmed_at", { withTimezone: true }).defaultNow(),
     notes: text("notes"),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
