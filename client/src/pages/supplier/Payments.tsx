@@ -114,6 +114,9 @@ export default function SupplierPaymentsPage() {
   const [distributions, setDistributions] = useState<Record<string, Record<string, number>>>({});
   const [distributingId, setDistributingId] = useState<string | null>(null);
 
+  // Expand/collapse per payment row — pending-to-collect rows start expanded
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
   const load = useCallback(() => {
     setLoaded(false);
     setLoadError(false);
@@ -124,7 +127,17 @@ export default function SupplierPaymentsPage() {
     ]).then(([w, p, pl]) => {
       if (w.status === "fulfilled") setWeek(w.value);
       if (p.status === "fulfilled") setPending(p.value);
-      if (pl.status === "fulfilled") setPendingList(pl.value.payments);
+      if (pl.status === "fulfilled") {
+        setPendingList(pl.value.payments);
+        // Rows still pending to collect start expanded; collected rows collapse
+        setExpandedIds(
+          new Set(
+            pl.value.payments
+              .filter((x) => x.collection_status === "PENDING")
+              .map((x) => x.id)
+          )
+        );
+      }
       setLoadError(w.status === "rejected" || p.status === "rejected" || pl.status === "rejected");
       setLoaded(true);
     });
@@ -183,6 +196,41 @@ export default function SupplierPaymentsPage() {
     const sMatch = !listStatus || p.collection_status === listStatus;
     return qMatch && sMatch;
   });
+
+  // Group filtered payments by facility, keeping insertion order (newest first)
+  const facilityGroups = (() => {
+    const map = new Map<
+      string,
+      { facility: SupplierPendingPayment["facility"]; payments: SupplierPendingPayment[] }
+    >();
+    for (const p of filteredPending) {
+      const g = map.get(p.facility.id);
+      if (g) g.payments.push(p);
+      else map.set(p.facility.id, { facility: p.facility, payments: [p] });
+    }
+    return [...map.values()];
+  })();
+
+  // Expand/collapse helpers
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allExpanded =
+    filteredPending.length > 0 && filteredPending.every((p) => expandedIds.has(p.id));
+  const expandAll = () => setExpandedIds(new Set(filteredPending.map((p) => p.id)));
+  const collapseAll = () => setExpandedIds(new Set());
+
+  // Summary of what still needs collecting / distributing (over filtered rows)
+  const pendingToCollect = filteredPending.filter((p) => p.collection_status === "PENDING");
+  const collectedToDistribute = filteredPending.filter(
+    (p) => p.collection_status === "COLLECTED_FROM_FACILITY"
+  );
+  const pendingToCollectTotal = pendingToCollect.reduce((s, p) => s + p.net_payment, 0);
+  const collectedToDistributeTotal = collectedToDistribute.reduce((s, p) => s + p.net_payment, 0);
 
   const totalDistributedFor = (p: SupplierPendingPayment) =>
     p.summaries.reduce(
@@ -278,6 +326,17 @@ export default function SupplierPaymentsPage() {
         title={t("Payments to receive from facilities")}
         subtitle={t("Collect the net payment from each facility, then distribute to the toli leaders")}
         className="mb-6"
+        action={
+          pendingList && pendingList.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={allExpanded ? collapseAll : expandAll}
+            >
+              {allExpanded ? t("Collapse all") : t("Expand all")}
+            </Button>
+          ) : undefined
+        }
       >
         {!pendingList ? (
           <LoadingScreen />
@@ -289,6 +348,26 @@ export default function SupplierPaymentsPage() {
           />
         ) : (
           <>
+            {/* Pending-to-collect summary strip */}
+            <div className="mb-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-husk-200 bg-husk-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-husk-700">
+                  ⏳ {t("Pending to collect")}
+                </p>
+                <p className="mt-1 font-display text-lg font-bold text-husk-800">
+                  {t("{n} entries", { n: pendingToCollect.length })} · <Money value={pendingToCollectTotal} />
+                </p>
+              </div>
+              <div className="rounded-xl border border-onion-200 bg-onion-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-onion-700">
+                  📤 {t("Collected — to distribute")}
+                </p>
+                <p className="mt-1 font-display text-lg font-bold text-onion-800">
+                  {t("{n} entries", { n: collectedToDistribute.length })} · <Money value={collectedToDistributeTotal} />
+                </p>
+              </div>
+            </div>
+
             <ListFilters
               className="mb-4"
               search={listQ}
@@ -310,23 +389,71 @@ export default function SupplierPaymentsPage() {
                 hint={t("Try a different search or status filter")}
               />
             ) : (
-            <div className="space-y-4">
-            {filteredPending.map((p) => {
-              const collected = p.collection_status === "COLLECTED_FROM_FACILITY";
-              const totalDistributed = totalDistributedFor(p);
-              const remaining = p.net_payment - totalDistributed;
+            <div className="space-y-6">
+            {facilityGroups.map((group) => {
+              const groupPending = group.payments.filter((x) => x.collection_status === "PENDING");
+              const groupPendingTotal = groupPending.reduce((s, x) => s + x.net_payment, 0);
+              const groupTotal = group.payments.reduce((s, x) => s + x.net_payment, 0);
               return (
-                <div key={p.id} className="overflow-hidden rounded-xl border border-field-200">
-                  {/* Row header */}
+                <div key={group.facility.id} className="overflow-hidden rounded-2xl border border-field-200">
+                  {/* Facility group header */}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-field-100 bg-field-50/70 px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-onion-700 text-base text-white">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-onion-800 text-base text-white">
                         🏭
                       </span>
                       <div>
-                        <p className="font-semibold text-field-900">{p.facility.name}</p>
+                        <p className="font-semibold text-field-900">{group.facility.name}</p>
                         <p className="text-xs text-field-500">
+                          {t("{n} payment entries", { n: group.payments.length })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {groupPending.length > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-husk-200 bg-husk-50 px-3 py-1 text-xs font-semibold text-husk-800">
+                          ⏳ {t("{n} pending to collect", { n: groupPending.length })} · <Money value={groupPendingTotal} />
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-onion-200 bg-onion-50 px-3 py-1 text-xs font-semibold text-onion-800">
+                          ✓ {t("All collected")}
+                        </span>
+                      )}
+                      <span className="text-xs font-medium text-field-500">
+                        {t("Total")} <Money value={groupTotal} />
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-field-100">
+                  {group.payments.map((p) => {
+              const collected = p.collection_status === "COLLECTED_FROM_FACILITY";
+              const totalDistributed = totalDistributedFor(p);
+              const remaining = p.net_payment - totalDistributed;
+              const expanded = expandedIds.has(p.id);
+              return (
+                <div key={p.id} className="bg-white">
+                  {/* Row header (click to expand / collapse) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(p.id)}
+                    aria-expanded={expanded}
+                    className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-field-50/70"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg text-base text-white transition-colors duration-150 ${
+                          collected ? "bg-onion-700" : "bg-husk-500"
+                        }`}
+                      >
+                        {collected ? "📤" : "⏳"}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-field-900">
                           {t("Week of {date}", { date: fmtDate(p.week_start_date) })}
+                        </p>
+                        <p className="text-xs text-field-500">
+                          {t("Net payment")} · <Money value={p.net_payment} />
                         </p>
                       </div>
                     </div>
@@ -348,9 +475,19 @@ export default function SupplierPaymentsPage() {
                           </p>
                         )}
                       </div>
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-field-500 shadow-sm shadow-field-900/5 ring-1 ring-inset ring-field-200 transition-transform duration-200 ${
+                          expanded ? "rotate-180" : ""
+                        }`}
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                      </span>
                     </div>
-                  </div>
+                  </button>
 
+                  {expanded && (
                   <div className="px-4 py-4">
                     {!collected ? (
                       /* Step 1 — collect from this facility */
@@ -429,6 +566,11 @@ export default function SupplierPaymentsPage() {
                         )}
                       </div>
                     )}
+                  </div>
+                  )}
+                </div>
+              );
+            })}
                   </div>
                 </div>
               );
