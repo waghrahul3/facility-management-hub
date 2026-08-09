@@ -193,6 +193,62 @@ router.put(
   })
 );
 
+// Facility/company admin records that the payment was physically handed over
+// to the supplier (cash or bank transfer) — the facility-side equivalent of
+// the supplier's "Mark collected". Captures method + notes + timestamp.
+router.put(
+  "/:facilityId/payments/:paymentId/handover",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const { payment_method, notes } = req.body ?? {};
+    if (!["CASH", "BANK_TRANSFER"].includes(payment_method)) {
+      throw badRequest("payment_method must be CASH or BANK_TRANSFER");
+    }
+
+    const existing = (
+      await db
+        .select()
+        .from(supplierPayments)
+        .where(eq(supplierPayments.id, param(req, "paymentId")))
+        .limit(1)
+    )[0];
+    if (!existing || existing.facility_id !== param(req, "facilityId")) {
+      throw notFound("Payment not found");
+    }
+    if (existing.collection_status !== "PENDING") {
+      throw badRequest(
+        existing.collection_status === "DISTRIBUTED_TO_WORKERS"
+          ? "Payment has already been distributed to workers"
+          : "Payment has already been handed over"
+      );
+    }
+
+    const [updated] = await db
+      .update(supplierPayments)
+      .set({
+        collection_status: "COLLECTED_FROM_FACILITY",
+        collection_date: new Date(),
+        payment_method,
+        notes: notes ?? null,
+        updated_at: new Date(),
+      })
+      .where(eq(supplierPayments.id, existing.id))
+      .returning();
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "UPDATE",
+      entityType: "SUPPLIER_PAYMENT",
+      entityId: existing.id,
+      oldValues: { collection_status: existing.collection_status },
+      newValues: { collection_status: "COLLECTED_FROM_FACILITY", payment_method, notes: notes ?? null },
+    });
+    return res.json({ payment: updated });
+  })
+);
+
 router.get(
   "/:facilityId/payments/history",
   requireFacilityAccess,

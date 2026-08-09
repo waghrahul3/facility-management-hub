@@ -70,6 +70,8 @@ interface InvoiceData {
       method: string | null;
       collectedAt: string | null;
       net: number;
+      advanceDeducted?: number;
+      advanceBalanceBefore?: number;
     } | null;
   };
 }
@@ -127,7 +129,14 @@ export default function SupplierInvoiceModal({
   }
 
   const m = data?.meta;
-  const earningsTotal = m ? m.toliLines.reduce((s, l) => s + l.earnings, 0) : 0;
+  // Worker total comes from the weekly summary lines when they exist; falls
+  // back to the date-wise work entries so the total never shows ₹0 when work
+  // was recorded but summaries are missing/stale.
+  const earningsTotal = m
+    ? m.toliLines.length > 0
+      ? m.toliLines.reduce((s, l) => s + l.earnings, 0)
+      : (m.workDetails ?? []).reduce((s, w) => s + w.amount, 0)
+    : 0;
   const rentTotal = m ? m.drops.reduce((s, d) => s + d.rent, 0) : 0;
   const workersTotal = m ? m.drops.reduce((s, d) => s + d.workers, 0) : 0;
 
@@ -328,10 +337,32 @@ export default function SupplierInvoiceModal({
                         <span className="text-field-500">{t("Worker earnings")}</span>
                         <span className="font-medium">{inr(earningsTotal)}</span>
                       </div>
+                      {m.payment && (m.payment.advanceDeducted ?? 0) > 0 && (
+                        <>
+                          <div className="flex justify-between px-3">
+                            <span className="text-field-500">{t("Advance deducted")}</span>
+                            <span className="font-medium text-amber-700">
+                              − {inr(m.payment.advanceDeducted ?? 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between px-3">
+                            <span className="text-field-500">{t("Advance balance after")}</span>
+                            <span className="font-medium text-amber-700">
+                              {inr((m.payment.advanceBalanceBefore ?? 0) - (m.payment.advanceDeducted ?? 0))}
+                            </span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between rounded-lg bg-onion-700 px-3 py-2.5 text-white">
                         <span className="font-semibold">{t("Total to pay")}</span>
                         <span className="font-display font-bold">{inr(earningsTotal)}</span>
                       </div>
+                      {m.payment && m.payment.net > 0 && (
+                        <div className="flex justify-between px-3 pt-1 text-xs text-field-400">
+                          <span>{t("Net paid")}</span>
+                          <span className="font-semibold text-field-600">{inr(m.payment.net)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>

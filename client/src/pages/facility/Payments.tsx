@@ -88,6 +88,18 @@ export default function PaymentsPage() {
   // Admin status override
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
 
+  // Handover to supplier (facility-side "collected")
+  const [handoverFor, setHandoverFor] = useState<{
+    paymentId: string;
+    supplierName: string;
+    amount: number;
+  } | null>(null);
+  const [handoverForm, setHandoverForm] = useState<{
+    method: "CASH" | "BANK_TRANSFER";
+    notes: string;
+  }>({ method: "CASH", notes: "" });
+  const [handoverBusy, setHandoverBusy] = useState(false);
+
   // Advances ledger
   const [advances, setAdvances] = useState<FacilityAdvanceRow[]>([]);
   const [advancesTotal, setAdvancesTotal] = useState(0);
@@ -224,6 +236,29 @@ export default function PaymentsPage() {
     }
   }
 
+  async function handoverPayment() {
+    if (!fid || !handoverFor) return;
+    setHandoverBusy(true);
+    setNotice(null);
+    try {
+      await put(`/facility/${fid}/payments/${handoverFor.paymentId}/handover`, {
+        payment_method: handoverForm.method,
+        notes: handoverForm.notes.trim() || null,
+      });
+      setNotice({
+        kind: "success",
+        text: t("Payment handed over to {name}.", { name: handoverFor.supplierName }),
+      });
+      setHandoverFor(null);
+      setHandoverForm({ method: "CASH", notes: "" });
+      load();
+    } catch (err) {
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : t("Handover failed") });
+    } finally {
+      setHandoverBusy(false);
+    }
+  }
+
   async function processSunday() {
     if (!fid) return;
     setBusy(true);
@@ -299,7 +334,7 @@ export default function PaymentsPage() {
         ) : (
           <>
             <Table
-              head={[t("Supplier"), t("Worker earnings"), t("Drops"), t("Rent charges"), t("Collection total"), t("Status"), t("Invoice")]}
+              head={[t("Supplier"), t("Worker earnings"), t("Drops"), t("Rent charges"), t("Collection total"), t("Status"), t("Actions")]}
               empty={null}
             >
               {pending.map((r) => (
@@ -325,13 +360,31 @@ export default function PaymentsPage() {
                     </Select>
                   </Td>
                   <Td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setInvoiceFor({ supplierId: r.supplier.id, weekStart: r.payment.week_start_date.slice(0, 10) })}
-                    >
-                      🧾 {t("Invoice")}
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      {r.payment.collection_status === "PENDING" && (
+                        <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => {
+                            setHandoverForm({ method: "CASH", notes: "" });
+                            setHandoverFor({
+                              paymentId: r.payment.id,
+                              supplierName: r.supplier.name,
+                              amount: r.payment.total_worker_earnings + r.payment.total_rent_charges,
+                            });
+                          }}
+                        >
+                          {t("Handover")}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setInvoiceFor({ supplierId: r.supplier.id, weekStart: r.payment.week_start_date.slice(0, 10) })}
+                      >
+                        🧾 {t("Invoice")}
+                      </Button>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -558,6 +611,53 @@ export default function PaymentsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Handover payment to supplier modal */}
+      <Modal open={handoverFor !== null} onClose={() => setHandoverFor(null)} title={t("Handover to supplier")}>
+        <div className="space-y-4">
+          <p className="rounded-lg bg-field-50 px-3 py-2 text-xs leading-relaxed text-field-500">
+            {t("Record the payment as handed over to the supplier — cash paid or bank transfer made.")}
+          </p>
+          {handoverFor && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-field-200 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-field-900">{handoverFor.supplierName}</p>
+                <p className="text-xs text-field-500">{t("Amount to hand over")}</p>
+              </div>
+              <Money value={handoverFor.amount} />
+            </div>
+          )}
+          <Field label={t("Payment method")}>
+            <SearchableSelect
+              value={handoverForm.method}
+              onChange={(v) => setHandoverForm({ ...handoverForm, method: v as "CASH" | "BANK_TRANSFER" })}
+              options={[
+                { value: "CASH", label: t("Cash") },
+                { value: "BANK_TRANSFER", label: t("Bank transfer") },
+              ]}
+              placeholder={t("Select method…")}
+              searchPlaceholder={t("Search payment methods…")}
+            />
+          </Field>
+          <Field label={t("Notes (optional)")}>
+            <Input
+              value={handoverForm.notes}
+              onChange={(e) => setHandoverForm({ ...handoverForm, notes: e.target.value })}
+              placeholder={t("e.g. handed over at facility office")}
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setHandoverFor(null)}>
+              {t("Cancel")}
+            </Button>
+            <Button type="button" variant="success" onClick={handoverPayment} loading={handoverBusy}>
+              {t("Mark handed over — ₹{amount}", {
+                amount: (handoverFor?.amount ?? 0).toLocaleString("en-IN"),
+              })}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Process Sunday payments modal — per-supplier advance deduction */}

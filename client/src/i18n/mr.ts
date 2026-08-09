@@ -753,6 +753,17 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   // Supplier
   // ---------------------------------------------------------------------
+  "Handover to supplier": "पुरवठादाराला सुपूर्द करा",
+  "Handover": "सुपूर्द करा",
+  "Record the payment as handed over to the supplier — cash paid or bank transfer made.": "देयक पुरवठादारास सुपूर्द केल्याची नोंद करा — रोख दिले किंवा बँक ट्रान्सफर केले.",
+  "Amount to hand over": "सुपूर्द करण्याची रक्कम",
+  "e.g. handed over at facility office": "उदा. सुविधा कार्यालयात सुपूर्द केले",
+  "Mark handed over — ₹{amount}": "सुपूर्द केले म्हणून नोंदवा — ₹{amount}",
+  "Payment handed over to {name}.": "देयक {name} ला सुपूर्द केले.",
+  "Handover failed": "सुपूर्द करण्यात अयशस्वी",
+  "Advance deducted": "आगाऊ कपात",
+  "Advance balance after": "नंतर आगाऊ शिल्लक",
+  "Net paid": "निव्वळ भरले",
   "Earnings + rent": "कमाई + भाडे",
   "Register the workers you drop at each facility": "प्रत्येक सुविधेत तुम्ही सोडलेले कामगार नोंदवा",
   "No drops registered this week": "या आठवड्यात नोंदवलेल्या पोची नाहीत",
