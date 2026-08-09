@@ -303,6 +303,8 @@ export async function supplierInvoice(
             method: payment.payment_method,
             collectedAt: payment.collection_date ? toISODate(payment.collection_date) : null,
             net: payment.net_payment,
+            advanceDeducted: payment.advance_deducted ?? 0,
+            advanceBalanceBefore: payment.advance_balance_before ?? 0,
           }
         : null,
     },
