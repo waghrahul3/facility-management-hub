@@ -314,9 +314,30 @@ router.put(
     )[0];
     if (!existing) throw notFound("Work entry not found");
 
-    const { quantity_bags, onion_category, notes, status, rent_per_drop } = req.body ?? {};
-    // Paid entries are locked after the Sunday payment settlement
-    if (existing.status === "PAID" && status && status !== "PAID") {
+    const {
+      quantity_bags,
+      onion_category,
+      notes,
+      status,
+      rent_per_drop,
+      bag_size_id,
+      work_date,
+      leader_name,
+      worker_count,
+    } = req.body ?? {};
+    // Paid entries are fully locked after the Sunday payment settlement
+    if (
+      existing.status === "PAID" &&
+      (quantity_bags != null ||
+        onion_category !== undefined ||
+        notes !== undefined ||
+        rent_per_drop != null ||
+        bag_size_id != null ||
+        work_date != null ||
+        leader_name != null ||
+        worker_count != null ||
+        (status && status !== "PAID"))
+    ) {
       throw badRequest("Paid work entries are locked after payment settlement");
     }
     // The drop rent can be corrected here too — it lives on the supplier
@@ -333,22 +354,61 @@ router.put(
           .where(eq(supplierDrops.id, toli.drop_id));
       }
     }
+    // Leader name / worker count live on the shared toli (all its entries)
+    const toli = (
+      await db.select().from(tolis).where(eq(tolis.id, existing.toli_id)).limit(1)
+    )[0];
+    if (toli) {
+      if (leader_name != null) {
+        const clean = String(leader_name).trim();
+        if (!clean) throw badRequest("leader_name cannot be empty");
+        // Find-or-create the leader registry row for the new name
+        let leader = (
+          await db.select().from(toliLeaders).where(eq(toliLeaders.name, clean)).limit(1)
+        )[0];
+        if (!leader) {
+          [leader] = await db
+            .insert(toliLeaders)
+            .values({ name: clean, phone: null })
+            .returning();
+        }
+        await db
+          .update(tolis)
+          .set({ leader_name: clean, leader_id: leader.id, updated_at: new Date() })
+          .where(eq(tolis.id, toli.id));
+      }
+      if (worker_count != null) {
+        await db
+          .update(tolis)
+          .set({ worker_count, updated_at: new Date() })
+          .where(eq(tolis.id, toli.id));
+        // Keep the day's drop worker count in sync
+        if (toli.drop_id) {
+          await db
+            .update(supplierDrops)
+            .set({ total_workers_dropped: worker_count, updated_at: new Date() })
+            .where(eq(supplierDrops.id, toli.drop_id));
+        }
+      }
+    }
+
     let rate = existing.rate_per_bag;
-    if (quantity_bags != null) {
+    const bagSizeId = bag_size_id ?? existing.bag_size_id;
+    if (quantity_bags != null || bag_size_id != null) {
       // Re-resolve rate (rates may have changed since entry creation)
-      const fresh = await resolveRateForBagSize(
-        param(req, "facilityId"),
-        existing.bag_size_id
-      );
+      const fresh = await resolveRateForBagSize(param(req, "facilityId"), bagSizeId);
       if (fresh != null) rate = fresh;
     }
+    const qty = quantity_bags ?? existing.quantity_bags;
 
     const [updated] = await db
       .update(workEntries)
       .set({
-        quantity_bags: quantity_bags ?? existing.quantity_bags,
+        quantity_bags: qty,
+        bag_size_id: bagSizeId,
         rate_per_bag: rate,
-        total_amount: (quantity_bags ?? existing.quantity_bags) * rate,
+        total_amount: roundMoney(rate * qty),
+        work_date: work_date != null ? new Date(work_date) : existing.work_date,
         onion_category:
           onion_category !== undefined ? onion_category || null : existing.onion_category,
         notes: notes !== undefined ? notes : existing.notes,
