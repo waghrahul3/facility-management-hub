@@ -855,6 +855,7 @@ export const mr: Record<string, string> = {
   "Drops & rent": "ढिग व भाडे",
   "Drop rent": "पोच भाडे",
   "Drop rent ({count} drops)": "पोच भाडे ({count} पोची)",
+  "Unknown leader": "अज्ञात नेता",
   Print: "छापा",
   "Supplier Invoice": "पुरवठादार देयक पत्रक",
   "No approved work for this supplier in this week": "या आठवड्यात या पुरवठादारासाठी मंजूर काम नाही",
