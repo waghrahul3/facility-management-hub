@@ -16,6 +16,8 @@ import {
   d,
   money,
   type Report,
+  type ReportCard,
+  type ReportColumn,
   type ReportFilters,
   type ReportScope,
 } from "./types.js";
@@ -186,40 +188,79 @@ export async function supplierInvoice(
     status: r.summary.approval_status,
   }));
 
+  // Section-scoped exports: a single invoice can be split into a worker
+  // invoice (toli earnings) and a drop invoice (rent charges).
+  const dropRows = drops.map((x) => ({
+    date: toISODate(x.drop_date),
+    workers: x.total_workers_dropped ?? 0,
+    rent: x.rent_per_drop ?? 0,
+    status: x.status,
+  }));
+
   const weekLabel = `${d(weekStart)} – ${d(weekEnd)}`;
   const invoiceNo = `INV-${supplierId.slice(0, 6).toUpperCase()}-${toISODate(weekStart).replace(/-/g, "")}`;
 
+  const section = f.section;
+  const isWorkers = section === "workers";
+  const isDrops = section === "drops";
+  const columns: ReportColumn[] = isDrops
+    ? [
+        { key: "date", label: "Date", type: "date" },
+        { key: "workers", label: "Workers", type: "number" },
+        { key: "rent", label: "Rent per drop", type: "money" },
+        { key: "status", label: "Status", type: "status" },
+      ]
+    : [
+        { key: "leader", label: "Toli / Leader", type: "text" },
+        { key: "bags", label: "Bags", type: "number" },
+        { key: "workAmount", label: "Work amount", type: "money" },
+        { key: "dayCharge", label: "Day charge", type: "money" },
+        { key: "earnings", label: "Earnings", type: "money" },
+        { key: "status", label: "Status", type: "status" },
+      ];
+  const outRows = isDrops ? dropRows : rows;
+  const totals: Record<string, number> = isDrops
+    ? {
+        workers: dropRows.reduce((s, r) => s + r.workers, 0),
+        rent: totalRent,
+        drops: drops.length,
+      }
+    : {
+        bags: rows.reduce((s, r) => s + r.bags, 0),
+        workAmount: rows.reduce((s, r) => s + r.workAmount, 0),
+        dayCharge: rows.reduce((s, r) => s + r.dayCharge, 0),
+        earnings: totalEarnings,
+        rent: totalRent,
+        net: netPayment,
+        facilityTotal,
+        drops: drops.length,
+      };
+  const cards: ReportCard[] = isDrops
+    ? [
+        { label: "Drops", value: String(drops.length), tone: "slate" },
+        { label: "Workers dropped", value: String(dropRows.reduce((s, r) => s + r.workers, 0)), tone: "blue" },
+        { label: "Drop rent", value: money(totalRent), tone: "amber" },
+      ]
+    : [
+        { label: "Worker earnings", value: money(totalEarnings), tone: "blue" },
+        { label: "Drops", value: String(drops.length), tone: "slate" },
+      ];
+
+
   return {
     type: "supplier-invoice",
-    title: "Supplier Invoice",
+    title: isWorkers
+      ? "Worker Invoice"
+      : isDrops
+        ? "Drop Rent Invoice"
+        : "Supplier Invoice",
     subtitle: `${supplier.name} • ${facility.name} • ${weekLabel}`,
     generatedAt: new Date().toISOString(),
     period: { from: toISODate(weekStart), to: toISODate(weekEnd) },
-    columns: [
-      { key: "leader", label: "Toli / Leader", type: "text" },
-      { key: "bags", label: "Bags", type: "number" },
-      { key: "workAmount", label: "Work amount", type: "money" },
-      { key: "dayCharge", label: "Day charge", type: "money" },
-      { key: "earnings", label: "Earnings", type: "money" },
-      { key: "status", label: "Status", type: "status" },
-    ],
-    rows,
-    totals: {
-      bags: rows.reduce((s, r) => s + r.bags, 0),
-      workAmount: rows.reduce((s, r) => s + r.workAmount, 0),
-      dayCharge: rows.reduce((s, r) => s + r.dayCharge, 0),
-      earnings: totalEarnings,
-      rent: totalRent,
-      net: netPayment,
-      facilityTotal,
-      drops: drops.length,
-    },
-    cards: [
-      { label: "Worker earnings", value: money(totalEarnings), tone: "blue" },
-      { label: "Drop rent", value: money(totalRent), tone: "amber" },
-      { label: "Total to pay", value: money(facilityTotal), tone: "green" },
-      { label: "Drops", value: String(drops.length), tone: "slate" },
-    ],
+    columns,
+    rows: outRows,
+    totals,
+    cards,
     meta: {
       invoiceNo,
       supplier: {

@@ -47,6 +47,8 @@ export interface ReportFilters {
   to: string | null;
   facilityId: string | null;
   supplierId: string | null;
+  /** Optional invoice section — when set, only that section is exported. */
+  section?: "workers" | "drops" | null;
 }
 
 /** Resolved data-visibility scope for the authenticated role. */
