@@ -10,7 +10,9 @@ import {
   EmptyState,
   Field,
   Input,
+  ListFilters,
   LoadingScreen,
+  Modal,
   Money,
   PageHeader,
   SearchableSelect,
@@ -73,20 +75,44 @@ interface PaymentPending {
   } | null;
 }
 
+/** A payment the supplier still has to receive (or has collected and must distribute). */
+interface SupplierPendingPayment {
+  id: string;
+  facility: { id: string; name: string };
+  week_start_date: string;
+  net_payment: number;
+  total_worker_earnings: number;
+  total_rent_charges: number;
+  advance_deducted: number | null;
+  collection_status: string;
+  payment_method: string | null;
+  collection_date: string | null;
+  summaries: Array<{ toliId: string; leader: string; earnings: number }>;
+}
+
 export default function SupplierPaymentsPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [statementOpen, setStatementOpen] = useState(false);
   const [week, setWeek] = useState<ThisWeek | null>(null);
   const [pending, setPending] = useState<PaymentPending | null>(null);
-  const [method, setMethod] = useState<"CASH" | "BANK_TRANSFER">("CASH");
-  const [notes, setNotes] = useState("");
-  const [distributions, setDistributions] = useState<Record<string, number>>({});
+  const [pendingList, setPendingList] = useState<SupplierPendingPayment[] | null>(null);
+  const [listQ, setListQ] = useState("");
+  const [listStatus, setListStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [advances, setAdvances] = useState<MyAdvances | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loaded, setLoaded] = useState(false);
+
+  // Collect from the list — one modal shared by every pending payment
+  const [collectFor, setCollectFor] = useState<SupplierPendingPayment | null>(null);
+  const [collectMethod, setCollectMethod] = useState<"CASH" | "BANK_TRANSFER">("CASH");
+  const [collectNotes, setCollectNotes] = useState("");
+
+  // Per-payment distribution amounts (paymentId → toliId → amount)
+  const [distributions, setDistributions] = useState<Record<string, Record<string, number>>>({});
+  const [distributingId, setDistributingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoaded(false);
@@ -94,13 +120,12 @@ export default function SupplierPaymentsPage() {
     Promise.allSettled([
       api<ThisWeek>("/supplier/this-week"),
       api<PaymentPending>("/supplier/payment-pending"),
-    ]).then(([w, p]) => {
+      api<{ payments: SupplierPendingPayment[] }>("/supplier/pending-payments"),
+    ]).then(([w, p, pl]) => {
       if (w.status === "fulfilled") setWeek(w.value);
-      if (p.status === "fulfilled") {
-        setPending(p.value);
-        if (p.value.stored) setDistributions({});
-      }
-      setLoadError(w.status === "rejected" || p.status === "rejected");
+      if (p.status === "fulfilled") setPending(p.value);
+      if (pl.status === "fulfilled") setPendingList(pl.value.payments);
+      setLoadError(w.status === "rejected" || p.status === "rejected" || pl.status === "rejected");
       setLoaded(true);
     });
     getMyAdvances().then(setAdvances).catch(() => setAdvances(null));
@@ -110,8 +135,8 @@ export default function SupplierPaymentsPage() {
 
   if (!loaded) return <LoadingScreen label={t("Loading payment details…")} />;
 
-  // Render with safe defaults so every card — including Step 1 — always
-  // shows content, even when one of the endpoints failed.
+  // Render with safe defaults so every card always shows content, even when
+  // one of the endpoints failed.
   const safeWeek: ThisWeek = week ?? {
     weekStart: "",
     weekEnd: "",
@@ -122,63 +147,72 @@ export default function SupplierPaymentsPage() {
     netPayment: 0,
   };
   const safePending: PaymentPending = pending ?? { payment: null, stored: null };
+  const netToCollect =
+    safePending.stored?.net_payment ?? safePending.payment?.netPayment ?? safeWeek.netPayment;
 
-  const preview = safePending.payment;
-  const stored = safePending.stored;
-  const collectionStatus = stored?.collection_status ?? "PENDING";
-  const netToCollect = stored?.net_payment ?? preview?.netPayment ?? safeWeek.netPayment;
-  const totalDistributed = Object.values(distributions).reduce((s, v) => s + (Number(v) || 0), 0);
-  const remaining = netToCollect - totalDistributed;
-  const approvedSummaries = safeWeek.summaries.filter((s) => s.summary.approval_status === "APPROVED");
-
-  const collect = async () => {
-    if (!stored) return;
+  async function collectFromFacility() {
+    if (!collectFor) return;
     setBusy(true);
     setNotice(null);
     try {
       await post("/supplier/collect-payment", {
-        payment_id: stored.id,
-        payment_method: method,
-        notes: notes || null,
+        payment_id: collectFor.id,
+        payment_method: collectMethod,
+        notes: collectNotes.trim() || null,
       });
       setNotice(t("Payment marked as collected from the facility. Now distribute to workers."));
+      setCollectFor(null);
+      setCollectNotes("");
       load();
     } catch (err) {
       setNotice(t("Collect failed: {message}", { message: err instanceof Error ? err.message : "" }));
     } finally {
       setBusy(false);
     }
-  };
+  }
 
-  const distribute = async () => {
-    if (!stored) return;
-    if (totalDistributed > stored.net_payment) {
+  // Client-side filters over the payments-to-receive list (search by facility,
+  // week, or leader; status = PENDING | COLLECTED_FROM_FACILITY).
+  const filteredPending = (pendingList ?? []).filter((p) => {
+    const q = listQ.trim().toLowerCase();
+    const qMatch =
+      !q ||
+      p.facility.name.toLowerCase().includes(q) ||
+      p.week_start_date.slice(0, 10).includes(q) ||
+      p.summaries.some((s) => s.leader.toLowerCase().includes(q));
+    const sMatch = !listStatus || p.collection_status === listStatus;
+    return qMatch && sMatch;
+  });
+
+  const totalDistributedFor = (p: SupplierPendingPayment) =>
+    p.summaries.reduce(
+      (s, sum) => s + (Number(distributions[p.id]?.[sum.toliId] ?? sum.earnings) || 0),
+      0
+    );
+
+  async function distributeToWorkers(p: SupplierPendingPayment) {
+    const dists = p.summaries.map((s) => ({
+      toli_id: s.toliId,
+      amount: Number(distributions[p.id]?.[s.toliId] ?? s.earnings),
+      method: p.payment_method ?? "CASH",
+    }));
+    const total = dists.reduce((s, d) => s + d.amount, 0);
+    if (total > p.net_payment) {
       setNotice(t("Distribution total exceeds the net payment!"));
       return;
     }
-    setBusy(true);
+    setDistributingId(p.id);
     setNotice(null);
     try {
-      await post("/supplier/distribute-payment", {
-        payment_id: stored.id,
-        distributions: approvedSummaries.map((s) => ({
-          toli_id: s.toli.id,
-          amount: Number(distributions[s.toli.id] ?? s.summary.total_earnings),
-          method,
-          notes: notes || null,
-        })),
-      });
+      await post("/supplier/distribute-payment", { payment_id: p.id, distributions: dists });
       setNotice(t("Distribution recorded. Payment marked DISTRIBUTED_TO_WORKERS."));
       load();
     } catch (err) {
       setNotice(t("Distribution failed: {message}", { message: err instanceof Error ? err.message : "" }));
     } finally {
-      setBusy(false);
+      setDistributingId(null);
     }
-  };
-
-  const canCollect = collectionStatus === "PENDING" && !!stored;
-  const canDistribute = collectionStatus === "COLLECTED_FROM_FACILITY" && !!stored;
+  }
 
   return (
     <div>
@@ -205,7 +239,7 @@ export default function SupplierPaymentsPage() {
         </div>
       )}
 
-      {/* Net payment breakdown */}
+      {/* Net payment breakdown — this week */}
       <Card
         title={t("Net payment for this week")}
         subtitle={
@@ -237,9 +271,172 @@ export default function SupplierPaymentsPage() {
             </p>
           </div>
         </div>
-        <div className="mt-3">
-          <StatusBadge status={collectionStatus} />
-        </div>
+      </Card>
+
+      {/* Payments to receive from facilities */}
+      <Card
+        title={t("Payments to receive from facilities")}
+        subtitle={t("Collect the net payment from each facility, then distribute to the toli leaders")}
+        className="mb-6"
+      >
+        {!pendingList ? (
+          <LoadingScreen />
+        ) : pendingList.length === 0 ? (
+          <EmptyState
+            icon="💰"
+            title={t("No payments to receive")}
+            hint={t("The facility admin must process Sunday payments first")}
+          />
+        ) : (
+          <>
+            <ListFilters
+              className="mb-4"
+              search={listQ}
+              onSearch={setListQ}
+              status={listStatus}
+              onStatus={setListStatus}
+              statusOptions={[
+                { value: "PENDING", label: t("Pending") },
+                { value: "COLLECTED_FROM_FACILITY", label: t("Collected from facility") },
+              ]}
+              searchPlaceholder={t("Search facility, week or leader…")}
+              allLabel={t("All statuses")}
+            />
+
+            {filteredPending.length === 0 ? (
+              <EmptyState
+                icon="🔍"
+                title={t("No matching payments")}
+                hint={t("Try a different search or status filter")}
+              />
+            ) : (
+            <div className="space-y-4">
+            {filteredPending.map((p) => {
+              const collected = p.collection_status === "COLLECTED_FROM_FACILITY";
+              const totalDistributed = totalDistributedFor(p);
+              const remaining = p.net_payment - totalDistributed;
+              return (
+                <div key={p.id} className="overflow-hidden rounded-xl border border-field-200">
+                  {/* Row header */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-field-100 bg-field-50/70 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-onion-700 text-base text-white">
+                        🏭
+                      </span>
+                      <div>
+                        <p className="font-semibold text-field-900">{p.facility.name}</p>
+                        <p className="text-xs text-field-500">
+                          {t("Week of {date}", { date: fmtDate(p.week_start_date) })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={p.collection_status} />
+                      <div className="text-right">
+                        <span className="font-display text-lg font-bold text-onion-800">
+                          <Money value={p.net_payment} />
+                        </span>
+                        {collected && (
+                          <p className="text-xs text-field-500">
+                            {t("Collected via {method}", {
+                              method:
+                                p.payment_method === "BANK_TRANSFER"
+                                  ? t("Bank transfer")
+                                  : t("Cash"),
+                            })}{" "}
+                            · {fmtDate(p.collection_date)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-4">
+                    {!collected ? (
+                      /* Step 1 — collect from this facility */
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-field-500">
+                          {t("Receive the net payment in cash or by bank transfer")}
+                        </p>
+                        <Button
+                          variant="success"
+                          loading={busy}
+                          onClick={() => {
+                            setCollectMethod("CASH");
+                            setCollectNotes("");
+                            setCollectFor(p);
+                          }}
+                        >
+                          {t("Collect payment")}
+                        </Button>
+                      </div>
+                    ) : (
+                      /* Step 2 — distribute to this facility's toli leaders */
+                      <div>
+                        {p.summaries.length === 0 ? (
+                          <EmptyState title={t("No approved toli earnings yet")} />
+                        ) : (
+                          <>
+                            <Table head={[t("Toli leader"), t("Earnings"), t("Distribute (₹)")]} empty={null}>
+                              {p.summaries.map((s) => (
+                                <tr key={s.toliId}>
+                                  <Td className="font-semibold text-field-900">{s.leader}</Td>
+                                  <Td><Money value={s.earnings} /></Td>
+                                  <Td>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      className="w-36"
+                                      value={distributions[p.id]?.[s.toliId] ?? s.earnings}
+                                      onChange={(e) =>
+                                        setDistributions({
+                                          ...distributions,
+                                          [p.id]: {
+                                            ...(distributions[p.id] ?? {}),
+                                            [s.toliId]: Number(e.target.value),
+                                          },
+                                        })
+                                      }
+                                    />
+                                  </Td>
+                                </tr>
+                              ))}
+                            </Table>
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                              <p className="text-sm text-field-500">
+                                {t("{n} distributed", { n: totalDistributed.toLocaleString("en-IN") })} ·{" "}
+                                <span
+                                  className={
+                                    remaining < 0
+                                      ? "font-semibold text-red-600"
+                                      : "font-semibold text-onion-700"
+                                  }
+                                >
+                                  {remaining >= 0
+                                    ? t("{n} remaining", { n: remaining.toLocaleString("en-IN") })
+                                    : t("{n} over", { n: (-remaining).toLocaleString("en-IN") })}
+                                </span>
+                              </p>
+                              <Button
+                                variant="success"
+                                loading={distributingId === p.id}
+                                onClick={() => distributeToWorkers(p)}
+                              >
+                                {t("Record distribution")}
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+            )}
+          </>
+        )}
       </Card>
 
       {/* Advance balance + history */}
@@ -323,93 +520,55 @@ export default function SupplierPaymentsPage() {
         )}
       </Card>
 
-      {/* Step 1: Collect */}
-      <Card title={t("Step 1 — Collect from facility")} subtitle={t("Receive the net payment in cash or by bank transfer")} className="mb-6">
-        {canCollect ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("Payment method")}>
-                <SearchableSelect
-                  value={method}
-                  onChange={(v) => setMethod(v as "CASH" | "BANK_TRANSFER")}
-                  options={[
-                    { value: "CASH", label: t("Cash") },
-                    { value: "BANK_TRANSFER", label: t("Bank transfer") },
-                  ]}
-                  placeholder={t("Select method…")}
-                  searchPlaceholder={t("Search payment methods…")}
-                />
-              </Field>
-              <Field label={t("Notes (optional)")}>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("e.g. collected at facility office")} />
-              </Field>
+      {/* Collect from facility modal */}
+      <Modal
+        open={collectFor !== null}
+        onClose={() => setCollectFor(null)}
+        title={t("Collect from facility")}
+      >
+        <div className="space-y-4">
+          {collectFor && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-field-200 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-field-900">{collectFor.facility.name}</p>
+                <p className="text-xs text-field-500">
+                  {t("Week of {date}", { date: fmtDate(collectFor.week_start_date) })}
+                </p>
+              </div>
+              <Money value={collectFor.net_payment} />
             </div>
-            <Button variant="success" onClick={collect} loading={busy}>
-              {t("Mark collected — ₹{amount}", { amount: netToCollect.toLocaleString("en-IN") })}
+          )}
+          <Field label={t("Payment method")}>
+            <SearchableSelect
+              value={collectMethod}
+              onChange={(v) => setCollectMethod(v as "CASH" | "BANK_TRANSFER")}
+              options={[
+                { value: "CASH", label: t("Cash") },
+                { value: "BANK_TRANSFER", label: t("Bank transfer") },
+              ]}
+              placeholder={t("Select method…")}
+              searchPlaceholder={t("Search payment methods…")}
+            />
+          </Field>
+          <Field label={t("Notes (optional)")}>
+            <Input
+              value={collectNotes}
+              onChange={(e) => setCollectNotes(e.target.value)}
+              placeholder={t("e.g. collected at facility office")}
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setCollectFor(null)}>
+              {t("Cancel")}
+            </Button>
+            <Button type="button" variant="success" onClick={collectFromFacility} loading={busy}>
+              {t("Mark collected — ₹{amount}", {
+                amount: (collectFor?.net_payment ?? 0).toLocaleString("en-IN"),
+              })}
             </Button>
           </div>
-        ) : collectionStatus === "COLLECTED_FROM_FACILITY" ? (
-          <div className="rounded-lg bg-onion-50 px-4 py-3 text-sm text-onion-800">
-            {t("✅ Collected{via}. Proceed to distribution below.", {
-              via: stored?.payment_method ? ` via ${stored.payment_method.replace("_", " ")}` : "",
-            })}
-          </div>
-        ) : approvedSummaries.length > 0 ? (
-          <div className="rounded-lg bg-field-50 px-4 py-3 text-sm leading-relaxed text-field-600">
-            {t("Payment not processed yet — the facility admin must process Sunday payments for this week. Your collection total of {amount} will appear here once processed.", {
-              amount: netToCollect.toLocaleString("en-IN"),
-            })}
-          </div>
-        ) : (
-          <EmptyState title={t("No payment ready yet")} hint={t("The facility admin must process Sunday payments first")} />
-        )}
-      </Card>
-
-      {/* Step 2: Distribute */}
-      <Card title={t("Step 2 — Distribute to workers")} subtitle={t("Record the amount given to each toli leader")}>
-        {approvedSummaries.length === 0 ? (
-          <EmptyState title={t("No approved toli earnings yet")} />
-        ) : (
-          <>
-            <Table head={[t("Toli leader"), t("Earnings"), t("Distribute (₹)")]} empty={null}>
-              {approvedSummaries.map((s) => (
-                <tr key={s.summary.id}>
-                  <Td className="font-semibold text-field-900">{s.toli.leader_name}</Td>
-                  <Td><Money value={s.summary.total_earnings} /></Td>
-                  <Td>
-                    <Input
-                      type="number"
-                      min={0}
-                      className="w-36"
-                      value={distributions[s.toli.id] ?? s.summary.total_earnings}
-                      onChange={(e) =>
-                        setDistributions({ ...distributions, [s.toli.id]: Number(e.target.value) })
-                      }
-                      disabled={!canDistribute && collectionStatus !== "COLLECTED_FROM_FACILITY"}
-                    />
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-field-500">
-                {t("{n} distributed", { n: totalDistributed.toLocaleString("en-IN") })} ·{" "}
-                <span className={remaining < 0 ? "font-semibold text-red-600" : "font-semibold text-onion-700"}>
-                  {remaining >= 0 ? t("{n} remaining", { n: remaining.toLocaleString("en-IN") }) : t("{n} over", { n: (-remaining).toLocaleString("en-IN") })}
-                </span>
-              </p>
-              {canDistribute && (
-                <Button variant="success" onClick={distribute} loading={busy}>
-                  {t("Record distribution")}
-                </Button>
-              )}
-              {collectionStatus === "DISTRIBUTED_TO_WORKERS" && (
-                <Badge tone="green">{t("DISTRIBUTED TO WORKERS")}</Badge>
-              )}
-            </div>
-          </>
-        )}
-      </Card>
+        </div>
+      </Modal>
 
       <SupplierAdvanceStatementModal
         open={statementOpen}

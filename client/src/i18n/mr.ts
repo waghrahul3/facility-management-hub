@@ -413,6 +413,19 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   "Worker invoice": "कामगार देयक",
   "Drop invoice": "पोच भाडे देयक",
+  "Payments to receive from facilities": "सुविधांकडून मिळणारी देयके",
+  "No payments to receive": "मिळण्यासारखी देयके नाहीत",
+  "Collect from facility": "सुविधेकडून वसूल करा",
+  "Select method…": "पद्धत निवडा…",
+  "Cash": "रोख",
+  "Collected via {method}": "{method} द्वारे गोळा केले",
+  "All statuses": "सर्व स्थिती",
+  "Filter by status": "स्थितीनुसार फिल्टर करा",
+  "Search facility, week or leader…": "सुविधा, आठवडा किंवा नेता शोधा…",
+  "No matching payments": "जुळणारी देयके नाहीत",
+  "Try a different search or status filter": "वेगळा शोध किंवा स्थिती फिल्टर वापरून पहा",
+  "Rent charges ({count} drops)": "भाडे शुल्क ({count} पोची)",
+  "Collect the net payment from each facility, then distribute to the toli leaders": "प्रत्येक सुविधेकडून निव्वळ देयक गोळा करा, नंतर टोळी नेत्यांना वितरित करा",
 
   // Reports
   // ---------------------------------------------------------------------

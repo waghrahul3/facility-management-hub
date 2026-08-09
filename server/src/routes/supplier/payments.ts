@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { facilities, supplierPayments } from "../../db/schema.js";
+import { facilities, supplierPayments, tolis, weeklyWorkSummaries } from "../../db/schema.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound, unauthorized } from "../../lib/errors.js";
 import { pageMeta, parsePage } from "../../lib/pagination.js";
@@ -13,6 +13,64 @@ import {
 import { mySupplierId } from "./_shared.js";
 
 const router = Router();
+
+// All payments the supplier still has to receive from facilities (PENDING)
+// plus collected-but-not-yet-distributed ones — each with the week's approved
+// toli summaries so the supplier can collect and distribute from the list,
+// no matter which week or facility the payment belongs to.
+router.get(
+  "/pending-payments",
+  asyncHandler(async (req, res) => {
+    const supplierId = mySupplierId(req);
+    const rows = await db
+      .select({
+        payment: supplierPayments,
+        facility: { id: facilities.id, name: facilities.name },
+      })
+      .from(supplierPayments)
+      .innerJoin(facilities, eq(facilities.id, supplierPayments.facility_id))
+      .where(
+        and(
+          eq(supplierPayments.supplier_id, supplierId),
+          inArray(supplierPayments.collection_status, [
+            "PENDING",
+            "COLLECTED_FROM_FACILITY",
+          ])
+        )
+      )
+      .orderBy(desc(supplierPayments.week_start_date));
+
+    const payments = await Promise.all(
+      rows.map(async (r) => {
+        const summaries = await db
+          .select({
+            toli: { id: tolis.id, leader_name: tolis.leader_name },
+            totalEarnings: weeklyWorkSummaries.total_earnings,
+          })
+          .from(weeklyWorkSummaries)
+          .innerJoin(tolis, eq(tolis.id, weeklyWorkSummaries.toli_id))
+          .where(
+            and(
+              eq(weeklyWorkSummaries.supplier_id, supplierId),
+              eq(weeklyWorkSummaries.facility_id, r.payment.facility_id),
+              eq(weeklyWorkSummaries.week_start_date, r.payment.week_start_date),
+              eq(weeklyWorkSummaries.approval_status, "APPROVED")
+            )
+          );
+        return {
+          ...r.payment,
+          facility: r.facility,
+          summaries: summaries.map((s) => ({
+            toliId: s.toli.id,
+            leader: s.toli.leader_name,
+            earnings: s.totalEarnings ?? 0,
+          })),
+        };
+      })
+    );
+    return res.json({ payments });
+  })
+);
 
 router.post(
   "/collect-payment",
