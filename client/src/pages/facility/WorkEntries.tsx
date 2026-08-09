@@ -298,7 +298,7 @@ export default function WorkEntriesPage() {
         </Card>
       ) : (
         <Card>
-          <Table head={[t("Date"), t("Supplier"), t("Toli"), t("Bag size"), t("Category"), t("Bags filled"), t("Add bags"), t("Rent / drop"), t("Rate"), t("Amount"), t("Status"), t("Action")]} empty={null}>
+          <Table head={[t("Date"), t("Supplier"), t("Toli"), t("Workers"), t("Bag size"), t("Category"), t("Bags filled"), t("Add bags"), t("Rent / drop"), t("Rate"), t("Amount"), t("Status"), t("Action")]} empty={null}>
             {entries.map((r) => (
               <tr key={r.entry.id} className="hover:bg-field-50/50">
                 <Td>{fmtDate(r.entry.work_date)}</Td>
@@ -306,6 +306,7 @@ export default function WorkEntriesPage() {
                   {r.supplier?.name ?? <span className="text-field-300">—</span>}
                 </Td>
                 <Td>{r.toli.leader_name}</Td>
+                <Td>{r.toli.worker_count ?? <span className="text-field-300">—</span>}</Td>
                 <Td>{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
                 <Td>{r.entry.onion_category || <span className="text-field-300">—</span>}</Td>
                 <Td className="font-semibold">{r.entry.quantity_bags}</Td>
