@@ -501,11 +501,24 @@ export async function distributeSupplierPayment(
 }
 
 export async function getPaymentDistributions(paymentId: string) {
-  return db
-    .select()
+  const rows = await db
+    .select({
+      id: supplierPaymentDistributions.id,
+      supplier_payment_id: supplierPaymentDistributions.supplier_payment_id,
+      supplier_id: supplierPaymentDistributions.supplier_id,
+      toli_id: supplierPaymentDistributions.toli_id,
+      amount_distributed: supplierPaymentDistributions.amount_distributed,
+      distribution_date: supplierPaymentDistributions.distribution_date,
+      payment_method: supplierPaymentDistributions.payment_method,
+      notes: supplierPaymentDistributions.notes,
+      created_at: supplierPaymentDistributions.created_at,
+      toliLeader: tolis.leader_name,
+    })
     .from(supplierPaymentDistributions)
+    .innerJoin(tolis, eq(tolis.id, supplierPaymentDistributions.toli_id))
     .where(eq(supplierPaymentDistributions.supplier_payment_id, paymentId))
     .orderBy(desc(supplierPaymentDistributions.created_at));
+  return rows.map((r) => ({ ...r, leader_name: r.toliLeader ?? null }));
 }
 
 /** Convenience: today's week boundaries. */

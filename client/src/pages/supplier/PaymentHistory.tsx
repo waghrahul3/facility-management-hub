@@ -34,6 +34,7 @@ interface HistoryPayment {
   distributions: Array<{
     id: string;
     toli_id: string;
+    leader_name: string | null;
     amount_distributed: number;
     distribution_date: string;
     payment_method: string;
@@ -164,10 +165,12 @@ export default function SupplierPaymentHistoryPage() {
                 </div>
 
                 {p.distributions.length > 0 && (
-                  <Table head={[t("Toli"), t("Amount"), t("Method"), t("Date")]} empty={null}>
+                  <Table head={[t("Toli leader"), t("Amount"), t("Method"), t("Date")]} empty={null}>
                     {p.distributions.map((d) => (
                       <tr key={d.id}>
-                        <Td className="font-medium text-field-800">Toli {d.toli_id.slice(0, 8)}</Td>
+                        <Td className="font-medium text-field-800">
+                          {d.leader_name ?? t("Unknown leader")}
+                        </Td>
                         <Td className="font-semibold"><Money value={d.amount_distributed} /></Td>
                         <Td>{d.payment_method.replace("_", " ")}</Td>
                         <Td>{fmtDate(d.distribution_date)}</Td>
