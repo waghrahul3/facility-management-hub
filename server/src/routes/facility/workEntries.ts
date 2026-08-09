@@ -43,7 +43,7 @@ router.get(
     const rows = await db
       .select({
         entry: workEntries,
-        toli: { id: tolis.id, leader_name: tolis.leader_name },
+        toli: { id: tolis.id, leader_name: tolis.leader_name, worker_count: tolis.worker_count },
         drop: { id: supplierDrops.id, rent_per_drop: supplierDrops.rent_per_drop },
         supplier: { id: suppliers.id, name: suppliers.name },
         bagSize: { id: bagSizes.id, size_name: bagSizes.size_name, weight_kg: bagSizes.weight_kg },
@@ -156,6 +156,7 @@ router.post(
       supplier_id,
       leader_name,
       rent_per_drop,
+      worker_count,
       work_date,
       bag_size_id,
       onion_category,
@@ -191,6 +192,7 @@ router.post(
         .update(supplierDrops)
         .set({
           rent_per_drop: rent_per_drop ?? drop.rent_per_drop,
+          total_workers_dropped: worker_count ?? drop.total_workers_dropped,
           updated_at: new Date(),
         })
         .where(eq(supplierDrops.id, drop.id))
@@ -202,7 +204,7 @@ router.post(
           supplier_id,
           facility_id: facilityId,
           drop_date: date,
-          total_workers_dropped: 0,
+          total_workers_dropped: worker_count ?? 0,
           rent_per_drop: rent_per_drop ?? 0,
         })
         .returning();
@@ -246,13 +248,23 @@ router.post(
           facility_id: facilityId,
           leader_id: leader.id,
           leader_name: cleanLeader,
-          worker_count: 0,
+          worker_count: worker_count ?? 0,
           daily_charge: 0,
           date,
           drop_id: drop.id,
         })
         .returning();
       toliCreated = true;
+    } else {
+      // Reused toli: refresh the worker count from the form
+      [toli] = await db
+        .update(tolis)
+        .set({
+          worker_count: worker_count ?? toli.worker_count,
+          updated_at: new Date(),
+        })
+        .where(eq(tolis.id, toli.id))
+        .returning();
     }
 
     // 3) Create the work entry (bags filled in step 2)
