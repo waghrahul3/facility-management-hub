@@ -36,8 +36,6 @@ const OrdersPage = lazy(() => import("./pages/company/Orders"));
 
 // Facility Admin pages
 const FacilityDashboard = lazy(() => import("./pages/facility/Dashboard"));
-const DropsPage = lazy(() => import("./pages/facility/Drops"));
-const TolisPage = lazy(() => import("./pages/facility/Tolis"));
 const WorkEntriesPage = lazy(() => import("./pages/facility/WorkEntries"));
 const FacilityRatesPage = lazy(() => import("./pages/facility/Rates"));
 const ApprovalsPage = lazy(() => import("./pages/facility/Approvals"));
@@ -100,6 +98,12 @@ function CompanyFacilityWorkspace({ children }: { children: ReactNode }) {
   );
 }
 
+/** Drops & Tolis were merged into Work Entries — redirect old bookmarks. */
+function RedirectToWorkEntries() {
+  const { facilityId } = useParams<{ facilityId: string }>();
+  return <Navigate to={`/company/facility/${facilityId}/work-entries`} replace />;
+}
+
 function Protected() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -130,8 +134,9 @@ function Protected() {
         {/* Company Admin — full facility-admin capabilities per facility */}
         <Route path="/company/facility/:facilityId/dashboard" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><FacilityDashboard /></CompanyFacilityWorkspace></RequireRole>} />
         <Route path="/company/facility/:facilityId/loading" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><LoadingGuidePage /></CompanyFacilityWorkspace></RequireRole>} />
-        <Route path="/company/facility/:facilityId/drops" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><DropsPage /></CompanyFacilityWorkspace></RequireRole>} />
-        <Route path="/company/facility/:facilityId/tolis" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><TolisPage /></CompanyFacilityWorkspace></RequireRole>} />
+        {/* Drops & Tolis were merged into Work Entries */}
+        <Route path="/company/facility/:facilityId/drops" element={<RedirectToWorkEntries />} />
+        <Route path="/company/facility/:facilityId/tolis" element={<RedirectToWorkEntries />} />
         <Route path="/company/facility/:facilityId/work-entries" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><WorkEntriesPage /></CompanyFacilityWorkspace></RequireRole>} />
         <Route path="/company/facility/:facilityId/rates" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><FacilityRatesPage /></CompanyFacilityWorkspace></RequireRole>} />
         <Route path="/company/facility/:facilityId/approvals" element={<RequireRole user={user} roles={["COMPANY_ADMIN"]}><CompanyFacilityWorkspace><ApprovalsPage /></CompanyFacilityWorkspace></RequireRole>} />
@@ -141,8 +146,9 @@ function Protected() {
         {/* Facility Admin */}
         <Route path="/facility/dashboard" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><FacilityDashboard /></FacilityAdminScope></RequireRole>} />
         <Route path="/facility/loading" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><LoadingGuidePage /></FacilityAdminScope></RequireRole>} />
-        <Route path="/facility/drops" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><DropsPage /></FacilityAdminScope></RequireRole>} />
-        <Route path="/facility/tolis" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><TolisPage /></FacilityAdminScope></RequireRole>} />
+        {/* Drops & Tolis were merged into Work Entries */}
+        <Route path="/facility/drops" element={<Navigate to="/facility/work-entries" replace />} />
+        <Route path="/facility/tolis" element={<Navigate to="/facility/work-entries" replace />} />
         <Route path="/facility/work-entries" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><WorkEntriesPage /></FacilityAdminScope></RequireRole>} />
         <Route path="/facility/rates" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><FacilityRatesPage /></FacilityAdminScope></RequireRole>} />
         <Route path="/facility/approvals" element={<RequireRole user={user} roles={["FACILITY_ADMIN"]}><FacilityAdminScope user={user}><ApprovalsPage /></FacilityAdminScope></RequireRole>} />

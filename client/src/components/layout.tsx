@@ -137,8 +137,6 @@ function navItemsFor(user: AuthUser, t: (s: string) => string): NavItem[] {
         { to: "/facility/dashboard", label: t("Dashboard"), icon: icons.dashboard },
         { to: "/facility/loading", label: t("Loading"), icon: icons.loading },
         { to: "/facility/sales", label: t("Sales Orders"), icon: icons.sales },
-        { to: "/facility/drops", label: t("Drops"), icon: icons.drops },
-        { to: "/facility/tolis", label: t("Tolis"), icon: icons.team },
         { to: "/facility/work-entries", label: t("Work"), icon: icons.work },
         { to: "/facility/rates", label: t("Rates"), icon: icons.rates },
         { to: "/facility/approvals", label: t("Approvals"), icon: icons.work },

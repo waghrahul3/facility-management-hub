@@ -85,10 +85,10 @@ export default function FacilityDashboard() {
 
         <Card title={t("Quick actions")}>
           <div className="grid grid-cols-2 gap-3">
-            <Link to={`${base}/drops`}><Button variant="secondary" className="w-full">{t("Register drop")}</Button></Link>
-            <Link to={`${base}/tolis`}><Button variant="secondary" className="w-full">{t("Create toli")}</Button></Link>
             <Link to={`${base}/work-entries`}><Button variant="secondary" className="w-full">{t("Record work")}</Button></Link>
             <Link to={`${base}/approvals`}><Button variant="secondary" className="w-full">{t("Approve week")}</Button></Link>
+            <Link to={`${base}/payments`}><Button variant="secondary" className="w-full">{t("Process payments")}</Button></Link>
+            <Link to={`${base}/rates`}><Button variant="secondary" className="w-full">{t("Rates")}</Button></Link>
           </div>
         </Card>
       </div>

@@ -572,7 +572,7 @@ export default function PaymentsPage() {
               <p className="rounded-lg bg-field-50 px-3 py-2 text-xs leading-relaxed text-field-500">
                 {t("Approve the advance recovery for each supplier. The deduction reduces their net payment; the rest carries forward.")}
               </p>
-            <Table head={[t("Supplier"), t("Earnings − rent"), t("Outstanding advance"), t("Deduct now"), t("Net to pay")]} empty={null}>
+            <Table head={[t("Supplier"), t("Earnings + rent"), t("Outstanding advance"), t("Deduct now"), t("Net to pay")]} empty={null}>
               {pending!.map((r) => {
                 const netBefore = r.payment.net_payment;
                 const out = r.outstanding_advance ?? 0;

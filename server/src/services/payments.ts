@@ -206,7 +206,11 @@ export interface SupplierWeekPayment {
   netPayment: number;
 }
 
-/** Compute net payment for one supplier for a week, from approved summaries + drops. */
+/**
+ * Compute the weekly settlement for one supplier from approved summaries + drops.
+ * The collection (net payment) is worker earnings PLUS drop rent charges — the
+ * full amount the facility pays out to the supplier for the week.
+ */
 export async function computeSupplierWeekPayment(
   facilityId: string,
   supplierId: string,
@@ -255,7 +259,7 @@ export async function computeSupplierWeekPayment(
     totalWorkerEarnings,
     totalDrops: drops.length,
     totalRentCharges,
-    netPayment: roundMoney(totalWorkerEarnings - totalRentCharges),
+    netPayment: roundMoney(totalWorkerEarnings + totalRentCharges),
   };
 }
 
