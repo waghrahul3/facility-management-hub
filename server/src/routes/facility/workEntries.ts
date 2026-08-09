@@ -191,7 +191,9 @@ router.post(
       [drop] = await db
         .update(supplierDrops)
         .set({
-          rent_per_drop: rent_per_drop ?? drop.rent_per_drop,
+          // Only a real rent overwrites the negotiated one (0 keeps it)
+          rent_per_drop:
+            rent_per_drop && rent_per_drop > 0 ? rent_per_drop : drop.rent_per_drop,
           total_workers_dropped: worker_count ?? drop.total_workers_dropped,
           updated_at: new Date(),
         })
@@ -312,10 +314,24 @@ router.put(
     )[0];
     if (!existing) throw notFound("Work entry not found");
 
-    const { quantity_bags, onion_category, notes, status } = req.body ?? {};
+    const { quantity_bags, onion_category, notes, status, rent_per_drop } = req.body ?? {};
     // Paid entries are locked after the Sunday payment settlement
     if (existing.status === "PAID" && status && status !== "PAID") {
       throw badRequest("Paid work entries are locked after payment settlement");
+    }
+    // The drop rent can be corrected here too — it lives on the supplier
+    // drop that brought the entry's toli in (shared by all its entries).
+    // Only a positive value updates it, so an empty input never wipes it.
+    if (rent_per_drop != null && rent_per_drop > 0) {
+      const toli = (
+        await db.select().from(tolis).where(eq(tolis.id, existing.toli_id)).limit(1)
+      )[0];
+      if (toli?.drop_id) {
+        await db
+          .update(supplierDrops)
+          .set({ rent_per_drop, updated_at: new Date() })
+          .where(eq(supplierDrops.id, toli.drop_id));
+      }
     }
     let rate = existing.rate_per_bag;
     if (quantity_bags != null) {
