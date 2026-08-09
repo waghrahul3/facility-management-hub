@@ -78,6 +78,13 @@
       "when": 1786189498627,
       "tag": "0010_sticky_sharon_carter",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786263400000,
+      "tag": "0011_leader_approve_default",
+      "breakpoints": true
     }
   ]
 }
