@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, post } from "../../lib/api";
+import { api, post, put } from "../../lib/api";
 import { useFacilityScope } from "../../lib/facilityScope";
 import { useI18n } from "../../i18n";
 import {
@@ -26,9 +26,9 @@ import ExportButtons from "../../components/ExportButtons";
 
 const PAGE_SIZE = 50;
 
-interface ToliOption {
+interface SupplierOption {
   id: string;
-  leader_name: string;
+  name: string;
 }
 
 interface BagOption {
@@ -49,6 +49,8 @@ interface EntryRow {
     leader_confirmed_at: string | null;
   };
   toli: { id: string; leader_name: string };
+  drop: { id: string; rent_per_drop: number } | null;
+  supplier: { id: string; name: string } | null;
   bagSize: { id: string; size_name: string; weight_kg: number };
 }
 
@@ -60,26 +62,38 @@ export default function WorkEntriesPage() {
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tolis, setTolis] = useState<ToliOption[]>([]);
+  const [supplierFilter, setSupplierFilter] = useState("");
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [bagSizes, setBagSizes] = useState<BagOption[]>([]);
   const [weekStart, setWeekStart] = useState(weekStartInput());
   const [showModal, setShowModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    toli_id: "",
+    supplier_id: "",
+    leader_name: "",
+    rent_per_drop: 0,
     work_date: todayInput(),
     bag_size_id: "",
     onion_category: "",
-    quantity_bags: 0,
     notes: "",
   });
-  const [previewRate, setPreviewRate] = useState<number | null>(null);
+  // Step 2: inline "bags filled" editor per row
+  const [bagEditId, setBagEditId] = useState<string | null>(null);
+  const [bagQty, setBagQty] = useState("");
 
   const load = useCallback(() => {
     if (!fid) return;
+    const params = new URLSearchParams({
+      weekStart,
+      page: String(page),
+      pageSize: String(PAGE_SIZE),
+      q,
+      status: statusFilter,
+      supplier_id: supplierFilter,
+    });
     api<{ entries: EntryRow[]; total: number }>(
-      `/facility/${fid}/work-entries?weekStart=${weekStart}&page=${page}&pageSize=${PAGE_SIZE}&q=${encodeURIComponent(q)}&status=${statusFilter}`
+      `/facility/${fid}/work-entries?${params.toString()}`
     ).then((r) => {
       setEntries(r.entries);
       setTotal(r.total);
@@ -87,36 +101,55 @@ export default function WorkEntriesPage() {
         setPage(Math.max(1, Math.ceil(r.total / PAGE_SIZE)));
       }
     });
-  }, [fid, weekStart, page, q, statusFilter]);
+  }, [fid, weekStart, page, q, statusFilter, supplierFilter]);
 
   useEffect(load, [load]);
 
   useEffect(() => {
     if (!fid) return;
-    api<{ tolis: { toli: ToliOption }[] }>(`/facility/${fid}/tolis?pageSize=200`).then((r) =>
-      setTolis(r.tolis.map((t) => t.toli))
+    api<{ suppliers: SupplierOption[] }>(`/facility/${fid}/suppliers`).then((r) =>
+      setSuppliers(r.suppliers)
     );
     api<{ bagSizes: BagOption[] }>(`/facility/${fid}/bag-sizes`).then((r) => setBagSizes(r.bagSizes));
   }, [fid]);
 
+  // Step 1: create the drop → toli → work entry chain in one submit
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      await post(`/facility/${fid}/work-entries`, {
-        toli_id: form.toli_id,
+      const r = await post<{ entry: EntryRow["entry"] }>(`/facility/${fid}/work-entries/quick-create`, {
+        supplier_id: form.supplier_id,
+        leader_name: form.leader_name,
+        rent_per_drop: Number(form.rent_per_drop) || 0,
         work_date: form.work_date,
         bag_size_id: form.bag_size_id,
         onion_category: form.onion_category || null,
-        quantity_bags: Number(form.quantity_bags),
         notes: form.notes || null,
       });
       setShowModal(false);
-      setForm({ ...form, onion_category: "", quantity_bags: 0, notes: "" });
-      setPreviewRate(null);
+      setForm({ ...form, leader_name: "", rent_per_drop: 0, onion_category: "", notes: "" });
+      // Step 2: jump straight into the bags-filled editor for the new entry
+      setBagEditId(r.entry.id);
+      setBagQty("");
       load();
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Step 2: save the bags-filled count for an entry
+  async function saveBags(id: string) {
+    setBusyId(id);
+    try {
+      await put(`/facility/${fid}/work-entries/${id}`, {
+        quantity_bags: Number(bagQty) || 0,
+      });
+      setBagEditId(null);
+      setBagQty("");
+      load();
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -174,6 +207,18 @@ export default function WorkEntriesPage() {
             ]}
             searchPlaceholder={t("Search toli leader…")}
           />
+          <div className="mt-3 max-w-xs">
+            <SearchableSelect
+              value={supplierFilter}
+              onChange={(v) => {
+                setSupplierFilter(v);
+                setPage(1);
+              }}
+              options={[{ value: "", label: t("All suppliers") }, ...suppliers.map((s) => ({ value: s.id, label: s.name }))]}
+              placeholder={t("Filter by supplier…")}
+              searchPlaceholder={t("Search suppliers…")}
+            />
+          </div>
         </div>
       </Card>
 
@@ -181,7 +226,7 @@ export default function WorkEntriesPage() {
         <LoadingScreen />
       ) : entries.length === 0 ? (
         <Card>
-          {q || statusFilter ? (
+          {q || statusFilter || supplierFilter ? (
             <EmptyState icon="🔍" title={t("No work entries match")} hint={t("Try a different search or status filter")} />
           ) : (
             <EmptyState title={t("No work entries this week")} hint={t("Record the first work entry")} />
@@ -189,14 +234,43 @@ export default function WorkEntriesPage() {
         </Card>
       ) : (
         <Card>
-          <Table head={[t("Date"), t("Toli"), t("Bag size"), t("Category"), t("Qty"), t("Rate"), t("Amount"), t("Status"), t("Leader OK"), t("Action")]} empty={null}>
+          <Table head={[t("Date"), t("Supplier"), t("Toli"), t("Bag size"), t("Category"), t("Bags filled"), t("Rent / drop"), t("Rate"), t("Amount"), t("Status"), t("Leader OK"), t("Action")]} empty={null}>
             {entries.map((r) => (
               <tr key={r.entry.id} className="hover:bg-field-50/50">
                 <Td>{fmtDate(r.entry.work_date)}</Td>
-                <Td className="font-medium text-field-900">{r.toli.leader_name}</Td>
+                <Td className="font-medium text-field-900">
+                  {r.supplier?.name ?? <span className="text-field-300">—</span>}
+                </Td>
+                <Td>{r.toli.leader_name}</Td>
                 <Td>{r.bagSize.size_name} ({r.bagSize.weight_kg}kg)</Td>
                 <Td>{r.entry.onion_category || <span className="text-field-300">—</span>}</Td>
-                <Td>{r.entry.quantity_bags}</Td>
+                <Td>
+                  {r.entry.status === "PAID" ? (
+                    <span className="font-semibold">{r.entry.quantity_bags}</span>
+                  ) : bagEditId === r.entry.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={bagQty}
+                        onChange={(e) => setBagQty(e.target.value)}
+                        className="w-20"
+                        autoFocus
+                      />
+                      <Button size="sm" loading={busyId === r.entry.id} onClick={() => saveBags(r.entry.id)}>
+                        {t("Save")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold">{r.entry.quantity_bags}</span>
+                      <Button size="sm" variant="secondary" onClick={() => { setBagEditId(r.entry.id); setBagQty(String(r.entry.quantity_bags || "")); }}>
+                        {t("Add bags")}
+                      </Button>
+                    </div>
+                  )}
+                </Td>
+                <Td>{r.drop ? <Money value={r.drop.rent_per_drop} /> : <span className="text-field-300">—</span>}</Td>
                 <Td><Money value={r.entry.rate_per_bag} /></Td>
                 <Td className="font-semibold"><Money value={r.entry.total_amount} /></Td>
                 <Td><StatusBadge status={r.entry.status} /></Td>
@@ -249,26 +323,46 @@ export default function WorkEntriesPage() {
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={t("Record work entry")}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label={t("Toli")}>
+          <div className="rounded-lg bg-onion-50 px-3 py-2 text-xs font-medium text-onion-800">
+            1 / 2 — {t("Supplier, toli leader and drop rent")}
+          </div>
+          <Field label={t("Supplier")}>
             <SearchableSelect
-              value={form.toli_id}
-              onChange={(v) => setForm({ ...form, toli_id: v })}
-              options={tolis.map((tl) => ({ value: tl.id, label: tl.leader_name }))}
-              placeholder={t("Select toli…")}
-              searchPlaceholder={t("Search tolis…")}
+              value={form.supplier_id}
+              onChange={(v) => setForm({ ...form, supplier_id: v })}
+              options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+              placeholder={t("Select supplier…")}
+              searchPlaceholder={t("Search suppliers…")}
               required
             />
           </Field>
-          <Field label={t("Work date")}>
-            <Input type="date" value={form.work_date} onChange={(e) => setForm({ ...form, work_date: e.target.value })} required />
+          <Field label={t("Leader name")}>
+            <Input
+              value={form.leader_name}
+              onChange={(e) => setForm({ ...form, leader_name: e.target.value })}
+              placeholder={t("Enter toli leader name…")}
+              required
+            />
           </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={t("Rent of drop")} hint={t("₹ — negotiated per drop")}>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                value={form.rent_per_drop}
+                onChange={(e) => setForm({ ...form, rent_per_drop: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </Field>
+            <Field label={t("Work date")}>
+              <Input type="date" value={form.work_date} onChange={(e) => setForm({ ...form, work_date: e.target.value })} required />
+            </Field>
+          </div>
           <Field label={t("Bag size")}>
             <SearchableSelect
               value={form.bag_size_id}
-              onChange={(v) => {
-                setForm({ ...form, bag_size_id: v });
-                setPreviewRate(null);
-              }}
+              onChange={(v) => setForm({ ...form, bag_size_id: v })}
               options={bagSizes.map((b) => ({ value: b.id, label: `${b.size_name} (${b.weight_kg}kg)` }))}
               placeholder={t("Select bag size…")}
               searchPlaceholder={t("Search bag sizes…")}
@@ -282,18 +376,15 @@ export default function WorkEntriesPage() {
               placeholder={t("Enter onion category…")}
             />
           </Field>
-          <Field label={t("Quantity (bags)")}>
-            <Input type="number" min={0} value={form.quantity_bags} onChange={(e) => setForm({ ...form, quantity_bags: Number(e.target.value) })} required />
-          </Field>
           <Field label={t("Notes (optional)")}>
             <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </Field>
           <div className="rounded-lg bg-field-50 px-3 py-2 text-xs text-field-500">
-            {t("Amount = quantity × applicable rate. Facility rates override global rates automatically.")}
+            2 / 2 — {t("Add the bags-filled count right after saving, inline in the list")}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowModal(false)}>{t("Cancel")}</Button>
-            <Button type="submit" loading={busy}>{t("Save entry")}</Button>
+            <Button type="submit" loading={busy}>{t("Create entry")}</Button>
           </div>
         </form>
       </Modal>

@@ -100,7 +100,7 @@ export default function LoginPage() {
             </h1>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
               {t(
-                "Register supplier drops, track daily toli work, and settle Sunday payments — earnings minus rent — with full transparency for suppliers, leaders, and admins."
+                "Register supplier drops, track daily toli work, and settle Sunday payments — earnings plus rent — with full transparency for suppliers, leaders, and admins."
               )}
             </p>
             <div className="mt-8 grid max-w-md grid-cols-2 gap-3">
@@ -118,7 +118,7 @@ export default function LoginPage() {
                 {
                   icon: "💵",
                   title: t("Sunday settlements"),
-                  text: t("Earnings minus rent, collected & distributed."),
+                  text: t("Earnings + rent, collected & distributed."),
                 },
                 {
                   icon: "📊",

@@ -61,7 +61,7 @@ export async function paymentsLedger(scope: ReportScope, f: ReportFilters): Prom
   return {
     type: "payments",
     title: "Supplier Payments Ledger",
-    subtitle: "Weekly supplier settlements — worker earnings minus drop rent",
+    subtitle: "Weekly supplier settlements — worker earnings plus drop rent",
     generatedAt: new Date().toISOString(),
     period: { from: f.from, to: f.to },
     columns: [

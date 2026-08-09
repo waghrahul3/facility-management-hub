@@ -78,13 +78,13 @@ Five roles exist in one `users` table, discriminated by `role` and scoped by `co
 - Register daily **supplier drops** (with per-drop rent), create **tolis**, record **work entries**
 - Edit facility-specific **rates** (override global)
 - Approve/reject **weekly summaries**
-- Process **Sunday payments** (earnings − rent − advance deduction)
+- Process **Sunday payments** (earnings + rent − advance deduction)
 - Record & manage **supplier advances**; manage **sales** for the facility
 - Edit toli leader details (name/phone) and reset their passwords
 
 ### 2.4 Supplier — own drops + facilities they operate in
 - Register drops; view work entries on their drops; view rent charges per drop
-- See weekly net payment (earnings − rent − advance deduction)
+- See weekly net payment (earnings + rent − advance deduction)
 - **Collect** payment from the facility → **distribute** to toli leaders
 - See advance balance + history; generate invoice & advance-statement reports
 - Cannot edit work entries or approve payments
@@ -194,7 +194,7 @@ Mon–Sat                          Sun
 2. **Tolis & work** — admins create tolis (leader, worker count, day charge) and record `work_entries` (bag size × category × qty). The rate applied is the **facility override if present, else the global rate**, snapshotted into the entry. Toli leaders **confirm** entries.
 3. **Summaries** — `generateWeeklySummaries(facilityId, weekStart, weekEnd)` (in `services/payments.ts`) aggregates each toli's bags, work amount, agreed daily charge and total earnings into a `weekly_work_summaries` row (unique per toli+week, so it is safe to re-run).
 4. **Approvals** — admins approve or reject summaries; payment processing only considers approved ones.
-5. **Sunday settlement** — `processSupplierPayments(facilityId, weekStart, weekEnd)` groups approved summaries **by supplier**, computes each supplier's totals (earnings, drops, rent) and a `net_payment = earnings − rent − advance_deducted`. Advance recovery is passed in from the UI per supplier (see §5.3).
+5. **Sunday settlement** — `processSupplierPayments(facilityId, weekStart, weekEnd)` groups approved summaries **by supplier**, computes each supplier's totals (earnings, drops, rent) and a `net_payment = earnings + rent − advance_deducted`. Advance recovery is passed in from the UI per supplier (see §5.3).
 
 ### 5.2 Payment lifecycle
 
@@ -207,7 +207,7 @@ PENDING ──(supplier clicks "Mark collected")──► COLLECTED_FROM_FACILIT
 - **Facility admin** creates the `supplier_payments` row on Sunday (Step 5 above). Each payment records earnings, rent, advance deduction, and the **advance balance before** the deduction.
 - **Supplier** sees the net payment in `Supplier → Collect & Distribute` and clicks **Mark collected** (cash / bank transfer) → `COLLECTED_FROM_FACILITY`.
 - **Supplier** then enters how much was handed to each toli leader (pre-filled from that week's summaries) and clicks **Record distribution** → `DISTRIBUTED_TO_WORKERS`. The distribution total is validated against the net payment.
-- Payments are immutable once distributed; history is available on both sides, plus printable **invoice** (earnings − rent − advance deduction) and **advance statement** reports.
+- Payments are immutable once distributed; history is available on both sides, plus printable **invoice** (earnings + rent − advance deduction) and **advance statement** reports.
 
 ### 5.3 Advance payments
 
@@ -315,7 +315,7 @@ Super Admin can push the project to a GitHub repo (token via `GITHUB_TOKEN` env)
 | `distributions` | Supplier → toli distributions | SA, CA, SUP, TL |
 | `supplier-statements` | Per-supplier weekly statements | SA, CA, SUP |
 | `rent` | Rent summary by facility | SA, CA, FA |
-| `supplier-invoice` | Earnings − rent − advances per supplier | SA, CA, FA, SUP |
+| `supplier-invoice` | Earnings + rent − advances per supplier | SA, CA, FA, SUP |
 | `supplier-advance-statement` | Advance ledger: given, recovered, running + outstanding balance | SA, CA, FA, SUP |
 | `subscription-earnings` | Subscription revenue | SA |
 | `subscription-monthly` | Monthly revenue trend | SA |

@@ -53,7 +53,7 @@ router.get(
       totalDrops: dropRows.length,
       totalRent,
       totalWorkerEarnings: totalEarnings,
-      netPayment: totalEarnings - totalRent,
+      netPayment: totalEarnings + totalRent,
     });
   })
 );

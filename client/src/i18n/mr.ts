@@ -13,7 +13,7 @@ export const mr: Record<string, string> = {
   "Management Suite": "व्यवस्थापन संच",
   "One field-to-payment platform for your onion centers.":
     "तुमच्या कांदा केंद्रांसाठी शेतापासून देयकापर्यंतचे एक व्यासपीठ.",
-  "Register supplier drops, track daily toli work, and settle Sunday payments — earnings minus rent — with full transparency for suppliers, leaders, and admins.":
+  "Register supplier drops, track daily toli work, and settle Sunday payments — earnings plus rent — with full transparency for suppliers, leaders, and admins.":
     "पुरवठादारांच्या पोची नोंदवा, दैनंदिन टोळी कामाचा मागोवा ठेवा आणि रविवारची देयके — कमाई वजा भाडे — पुरवठादार, नेते आणि प्रशासकांसाठी पूर्ण पारदर्शकतेने सेटल करा.",
   "JWT-secured": "JWT-सुरक्षित",
   PostgreSQL: "PostgreSQL",
@@ -240,7 +240,7 @@ export const mr: Record<string, string> = {
   "Toli work recording": "टोळी काम नोंदणी",
   "Gridding, packaging & bagging per bag size.": "पिशवी आकारानुसार निवड, पॅकिंग आणि भरणी.",
   "Sunday settlements": "रविवारी सेटलमेंट",
-  "Earnings minus rent, collected & distributed.": "कमाई वजा भाडे, गोळा आणि वितरित.",
+  "Earnings + rent, collected & distributed.": "कमाई + भाडे, गोळा आणि वितरित.",
   "Multi-facility": "बहु-सुविधा",
   "Every center you run, on one platform.": "तुम्ही चालवलेले प्रत्येक केंद्र, एकाच व्यासपीठावर.",
   "Sign in with your credentials": "तुमच्या क्रेडेन्शियल्ससह साइन इन करा",
@@ -684,6 +684,15 @@ export const mr: Record<string, string> = {
   "Quantity (bags)": "प्रमाण (पिशव्या)",
   "Amount = quantity × applicable rate. Facility rates override global rates automatically.": "रक्कम = प्रमाण × लागू दर. सुविधा दर जागतिक दर आपोआप ओलांडतात.",
   "Save entry": "नोंद जतन करा",
+  "Rent of drop": "पोचचे भाडे",
+  "Bags filled": "भरलेल्या पिशव्या",
+  "Add bags": "पिशव्या जोडा",
+  "Create entry": "नोंद तयार करा",
+  "Enter toli leader name…": "टोळी नेत्याचे नाव टाका…",
+  "Filter by supplier…": "पुरवठादारानुसार फिल्टर…",
+  "Supplier, toli leader and drop rent": "पुरवठादार, टोळी नेता आणि पोच भाडे",
+  "Add the bags-filled count right after saving, inline in the list": "जतन केल्यानंतर लगेच यादीतच भरलेल्या पिशव्यांची संख्या जोडा",
+  "₹ — negotiated per drop": "₹ — प्रति पोच निश्चित केलेले",
 
   // ---------------------------------------------------------------------
   // Facility — rates / approvals / payments
@@ -720,7 +729,7 @@ export const mr: Record<string, string> = {
   "Process Sunday payments for this week? This locks approved work as PAID.": "या आठवड्यासाठी रविवारी देयके प्रक्रिया करायची? यामुळे मंजूर काम PAID म्हणून लॉक होईल.",
   "Processed {n} supplier payments. Suppliers can now collect and distribute.": "{n} पुरवठादार देयके प्रक्रिया केली. पुरवठादार आता गोळा करू शकतात आणि वितरित करू शकतात.",
   "Sunday Payments": "रविवारी देयके",
-  "Calculate net payments: worker earnings − supplier rent charges": "निव्वळ देयके मोजा: कामगार कमाई − पुरवठादार भाडे शुल्क",
+  "Calculate net payments: worker earnings + supplier rent charges": "निव्वळ देयके मोजा: कामगार कमाई − पुरवठादार भाडे शुल्क",
   "Process Sunday payments": "रविवारी देयके प्रक्रिया करा",
   "Pending collections": "प्रलंबित वसुली",
   "Net payment each supplier will collect from the facility": "प्रत्येक पुरवठादार सुविधेकडून गोळा करणारे निव्वळ देयक",
@@ -733,6 +742,7 @@ export const mr: Record<string, string> = {
   // ---------------------------------------------------------------------
   // Supplier
   // ---------------------------------------------------------------------
+  "Earnings + rent": "कमाई + भाडे",
   "Register the workers you drop at each facility": "प्रत्येक सुविधेत तुम्ही सोडलेले कामगार नोंदवा",
   "No drops registered this week": "या आठवड्यात नोंदवलेल्या पोची नाहीत",
   "Register your first drop": "तुमची पहिली पोच नोंदवा",

@@ -226,8 +226,8 @@ export default function SupplierPaymentsPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-field-400">
               {t("Rent charges ({count} drops)", { count: safeWeek.totalDrops })}
             </p>
-            <p className="mt-1 font-display text-xl font-bold text-red-600">
-              − <Money value={safeWeek.totalRent} />
+            <p className="mt-1 font-display text-xl font-bold text-onion-700">
+              + <Money value={safeWeek.totalRent} />
             </p>
           </div>
           <div className="rounded-xl bg-onion-50 p-4">

@@ -22,7 +22,7 @@ import {
 
 /**
  * Supplier Invoice — a single printable invoice for one supplier for one week:
- * worker earnings (from approved weekly summaries) minus drop rent charges.
+ * worker earnings (from approved weekly summaries) plus drop rent charges.
  *
  * Filters:
  *  - `supplierId` — which supplier (required, or implied by a SUPPLIER role)
@@ -173,9 +173,9 @@ export async function supplierInvoice(
   // --- Totals ---------------------------------------------------------------
   const totalEarnings = summaries.reduce((s, x) => s + (x.summary.total_earnings ?? 0), 0);
   const totalRent = drops.reduce((s, x) => s + (x.rent_per_drop ?? 0), 0);
-  const netPayment = totalEarnings - totalRent;
-  // The facility's total amount to pay for the week: drop rent + toli earnings.
-  const facilityTotal = totalEarnings + totalRent;
+  // The facility's total amount to pay for the week: toli earnings + drop rent.
+  const netPayment = totalEarnings + totalRent;
+  const facilityTotal = netPayment;
 
   const rows = summaries.map((r) => ({
     leader: r.toli.leader_name,

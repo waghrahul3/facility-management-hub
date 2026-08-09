@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { and, count, desc, eq, gte, ilike, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { bagSizes, tolis, workEntries } from "../../db/schema.js";
+import { bagSizes, supplierDrops, suppliers, toliLeaders, tolis, workEntries } from "../../db/schema.js";
 import { requireFacilityAccess, requireRole } from "../../auth/middleware.js";
 import { audit } from "../../lib/audit.js";
 import { asyncHandler, badRequest, notFound } from "../../lib/errors.js";
@@ -31,22 +31,28 @@ router.get(
     const query = req.query as Record<string, unknown>;
     const q = typeof query.q === "string" ? query.q.trim() : "";
     const status = typeof query.status === "string" ? query.status.trim() : "";
+    const supplierId = typeof query.supplier_id === "string" ? query.supplier_id.trim() : "";
     const where = and(
       eq(workEntries.facility_id, param(req, "facilityId")),
       gte(workEntries.work_date, weekStart),
       lte(workEntries.work_date, weekEnd),
       q ? ilike(tolis.leader_name, `%${q}%`) : undefined,
-      status ? eq(workEntries.status, status as "DRAFT" | "APPROVED" | "PAID") : undefined
+      status ? eq(workEntries.status, status as "DRAFT" | "APPROVED" | "PAID") : undefined,
+      supplierId ? eq(suppliers.id, supplierId) : undefined
     );
     const rows = await db
       .select({
         entry: workEntries,
         toli: { id: tolis.id, leader_name: tolis.leader_name },
+        drop: { id: supplierDrops.id, rent_per_drop: supplierDrops.rent_per_drop },
+        supplier: { id: suppliers.id, name: suppliers.name },
         bagSize: { id: bagSizes.id, size_name: bagSizes.size_name, weight_kg: bagSizes.weight_kg },
       })
       .from(workEntries)
       .innerJoin(tolis, eq(tolis.id, workEntries.toli_id))
       .innerJoin(bagSizes, eq(bagSizes.id, workEntries.bag_size_id))
+      .leftJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
+      .leftJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
       .where(where)
       .orderBy(desc(workEntries.work_date))
       .limit(limit)
@@ -55,6 +61,8 @@ router.get(
       .select({ value: count() })
       .from(workEntries)
       .innerJoin(tolis, eq(tolis.id, workEntries.toli_id))
+      .leftJoin(supplierDrops, eq(supplierDrops.id, tolis.drop_id))
+      .leftJoin(suppliers, eq(suppliers.id, supplierDrops.supplier_id))
       .where(where);
     return res.json({ entries: rows, ...pageMeta(totalRow?.value ?? 0, { page, pageSize, limit, offset }) });
   })
@@ -129,6 +137,156 @@ router.post(
       newValues: entry,
     });
     return res.status(201).json({ entry });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Quick-create: one form creates the whole chain — supplier drop → toli →
+// work entry. The drop and toli are reused when one already exists for the
+// same supplier / leader on the same day, so repeat entries for the same
+// group don't duplicate records. Bag counts are added afterwards via PUT
+// (step 2 of the two-step flow).
+// ---------------------------------------------------------------------------
+
+router.post(
+  "/:facilityId/work-entries/quick-create",
+  requireFacilityAccess,
+  asyncHandler(async (req, res) => {
+    const {
+      supplier_id,
+      leader_name,
+      rent_per_drop,
+      work_date,
+      bag_size_id,
+      onion_category,
+      notes,
+    } = req.body ?? {};
+    if (!supplier_id || !leader_name || !work_date || !bag_size_id) {
+      throw badRequest("supplier_id, leader_name, work_date and bag_size_id are required");
+    }
+    const facilityId = param(req, "facilityId");
+    const date = new Date(work_date);
+    const dayStart = new Date(`${work_date}T00:00:00.000Z`);
+    const dayEnd = new Date(`${work_date}T23:59:59.999Z`);
+
+    // 1) Find-or-create the supplier drop for that day
+    let drop = (
+      await db
+        .select()
+        .from(supplierDrops)
+        .where(
+          and(
+            eq(supplierDrops.supplier_id, supplier_id),
+            eq(supplierDrops.facility_id, facilityId),
+            gte(supplierDrops.drop_date, dayStart),
+            lte(supplierDrops.drop_date, dayEnd)
+          )
+        )
+        .limit(1)
+    )[0];
+    let dropCreated = false;
+    if (drop) {
+      // Reuse the existing drop, refreshing the negotiated rent
+      [drop] = await db
+        .update(supplierDrops)
+        .set({
+          rent_per_drop: rent_per_drop ?? drop.rent_per_drop,
+          updated_at: new Date(),
+        })
+        .where(eq(supplierDrops.id, drop.id))
+        .returning();
+    } else {
+      [drop] = await db
+        .insert(supplierDrops)
+        .values({
+          supplier_id,
+          facility_id: facilityId,
+          drop_date: date,
+          total_workers_dropped: 0,
+          rent_per_drop: rent_per_drop ?? 0,
+        })
+        .returning();
+      dropCreated = true;
+    }
+
+    // 2) Find-or-create the toli leader registry row, then the toli
+    const cleanLeader = String(leader_name).trim();
+    let leader = (
+      await db
+        .select()
+        .from(toliLeaders)
+        .where(eq(toliLeaders.name, cleanLeader))
+        .limit(1)
+    )[0];
+    if (!leader) {
+      [leader] = await db
+        .insert(toliLeaders)
+        .values({ name: cleanLeader, phone: null })
+        .returning();
+    }
+    let toli = (
+      await db
+        .select()
+        .from(tolis)
+        .where(
+          and(
+            eq(tolis.facility_id, facilityId),
+            eq(tolis.leader_name, cleanLeader),
+            gte(tolis.date, dayStart),
+            lte(tolis.date, dayEnd)
+          )
+        )
+        .limit(1)
+    )[0];
+    let toliCreated = false;
+    if (!toli) {
+      [toli] = await db
+        .insert(tolis)
+        .values({
+          facility_id: facilityId,
+          leader_id: leader.id,
+          leader_name: cleanLeader,
+          worker_count: 0,
+          daily_charge: 0,
+          date,
+          drop_id: drop.id,
+        })
+        .returning();
+      toliCreated = true;
+    }
+
+    // 3) Create the work entry (bags filled in step 2)
+    const rate = await resolveRateForBagSize(facilityId, bag_size_id);
+    if (rate == null) {
+      throw badRequest("No rate configured for this bag size (facility or global)");
+    }
+    const [entry] = await db
+      .insert(workEntries)
+      .values({
+        toli_id: toli.id,
+        facility_id: facilityId,
+        work_date: date,
+        bag_size_id,
+        quantity_bags: 0,
+        rate_per_bag: rate,
+        total_amount: 0,
+        onion_category: onion_category || null,
+        notes: notes ?? null,
+        status: "APPROVED",
+        leader_confirmed_at: new Date(),
+      })
+      .returning();
+
+    await audit({
+      req,
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      action: "CREATE",
+      entityType: "WORK_ENTRY",
+      entityId: entry.id,
+      newValues: { ...entry, quickCreate: { dropCreated, toliCreated } },
+    });
+    return res.status(201).json({ entry, toli, drop, dropCreated, toliCreated });
   })
 );
 
