@@ -78,10 +78,12 @@ export default function WorkEntriesPage() {
     onion_category: "",
     notes: "",
   });
-  // Step 2: "Add bags" popup — the new count is previous + new bags
+  // Step 2: "Add bags" popup — the new count is previous + new bags,
+  // and the drop rent can be corrected right there too.
   const [pendingBagId, setPendingBagId] = useState<string | null>(null);
   const [bagEntry, setBagEntry] = useState<EntryRow | null>(null);
   const [newBags, setNewBags] = useState("");
+  const [rentInput, setRentInput] = useState("");
 
   const load = useCallback(() => {
     if (!fid) return;
@@ -107,6 +109,7 @@ export default function WorkEntriesPage() {
         if (found) {
           setBagEntry(found);
           setNewBags("");
+          setRentInput(String(found.drop?.rent_per_drop ?? 0));
           setPendingBagId(null);
         }
       }
@@ -148,7 +151,8 @@ export default function WorkEntriesPage() {
     }
   }
 
-  // Step 2: save the new total = previous count + newly added bags
+  // Step 2: save the new total = previous count + newly added bags, plus any
+  // correction to the drop rent
   async function saveBagsFromModal() {
     if (!bagEntry) return;
     const previous = bagEntry.entry.quantity_bags || 0;
@@ -157,9 +161,11 @@ export default function WorkEntriesPage() {
     try {
       await put(`/facility/${fid}/work-entries/${bagEntry.entry.id}`, {
         quantity_bags: previous + added,
+        rent_per_drop: Number(rentInput) || 0,
       });
       setBagEntry(null);
       setNewBags("");
+      setRentInput("");
       load();
     } finally {
       setBusyId(null);
@@ -268,6 +274,7 @@ export default function WorkEntriesPage() {
                       onClick={() => {
                         setBagEntry(r);
                         setNewBags("");
+                        setRentInput(String(r.drop?.rent_per_drop ?? 0));
                       }}
                     >
                       {t("Add bags")}
@@ -413,17 +420,29 @@ export default function WorkEntriesPage() {
               <span className="text-xs font-medium text-onion-700">{t("Current bags")}</span>
               <span className="text-xl font-bold text-onion-800">{bagEntry.entry.quantity_bags}</span>
             </div>
-            <Field label={t("New bags")} hint={t("Added on top of the current count")}>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                value={newBags}
-                onChange={(e) => setNewBags(e.target.value)}
-                placeholder="0"
-                autoFocus
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t("New bags")} hint={t("Added on top of the current count")}>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={newBags}
+                  onChange={(e) => setNewBags(e.target.value)}
+                  placeholder="0"
+                  autoFocus
+                />
+              </Field>
+              <Field label={t("Rent of drop")} hint={t("₹ — negotiated per drop")}>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={rentInput}
+                  onChange={(e) => setRentInput(e.target.value)}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
             <div className="flex items-center justify-between rounded-lg border border-field-200 bg-white px-3 py-2">
               <span className="text-sm text-field-500">{t("Total bags")}</span>
               <span className="text-lg font-bold text-field-900">
