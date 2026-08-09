@@ -42,6 +42,7 @@ interface EntryRow {
     id: string;
     work_date: string;
     onion_category: string | null;
+    notes: string | null;
     quantity_bags: number;
     rate_per_bag: number;
     total_amount: number;
@@ -84,6 +85,17 @@ export default function WorkEntriesPage() {
   const [bagEntry, setBagEntry] = useState<EntryRow | null>(null);
   const [newBags, setNewBags] = useState("");
   const [rentInput, setRentInput] = useState("");
+  // Edit modal — entry details, leader & workers, work date
+  const [editEntry, setEditEntry] = useState<EntryRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    work_date: "",
+    bag_size_id: "",
+    quantity: "",
+    onion_category: "",
+    notes: "",
+    leader_name: "",
+    worker_count: "",
+  });
 
   const load = useCallback(() => {
     if (!fid) return;
@@ -166,6 +178,39 @@ export default function WorkEntriesPage() {
       setBagEntry(null);
       setNewBags("");
       setRentInput("");
+      load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function openEdit(r: EntryRow) {
+    setEditEntry(r);
+    setEditForm({
+      work_date: r.entry.work_date.slice(0, 10),
+      bag_size_id: r.bagSize.id,
+      quantity: String(r.entry.quantity_bags ?? ""),
+      onion_category: r.entry.onion_category ?? "",
+      notes: r.entry.notes ?? "",
+      leader_name: r.toli.leader_name,
+      worker_count: String(r.toli.worker_count ?? ""),
+    });
+  }
+
+  async function saveEdit() {
+    if (!editEntry) return;
+    setBusyId(editEntry.entry.id);
+    try {
+      await put(`/facility/${fid}/work-entries/${editEntry.entry.id}`, {
+        work_date: editForm.work_date,
+        bag_size_id: editForm.bag_size_id,
+        quantity_bags: Number(editForm.quantity) || 0,
+        onion_category: editForm.onion_category || null,
+        notes: editForm.notes || null,
+        leader_name: editForm.leader_name,
+        worker_count: Number(editForm.worker_count) || 0,
+      });
+      setEditEntry(null);
       load();
     } finally {
       setBusyId(null);
@@ -286,28 +331,35 @@ export default function WorkEntriesPage() {
                 <Td className="font-semibold"><Money value={r.entry.total_amount} /></Td>
                 <Td><StatusBadge status={r.entry.status} /></Td>
                 <Td>
-                  {r.entry.status === "DRAFT" && (
-                    <Button
-                      size="sm"
-                      loading={busyId === r.entry.id}
-                      onClick={() => setStatus(r.entry.id, "approve")}
-                    >
-                      {t("Approve")}
-                    </Button>
-                  )}
-                  {r.entry.status === "APPROVED" && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      loading={busyId === r.entry.id}
-                      onClick={() => setStatus(r.entry.id, "reject")}
-                    >
-                      {t("Reject")}
-                    </Button>
-                  )}
-                  {r.entry.status === "PAID" && (
-                    <Badge tone="slate">🔒 {t("Settled")}</Badge>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {r.entry.status !== "PAID" && (
+                      <Button size="sm" variant="secondary" onClick={() => openEdit(r)}>
+                        {t("Edit")}
+                      </Button>
+                    )}
+                    {r.entry.status === "DRAFT" && (
+                      <Button
+                        size="sm"
+                        loading={busyId === r.entry.id}
+                        onClick={() => setStatus(r.entry.id, "approve")}
+                      >
+                        {t("Approve")}
+                      </Button>
+                    )}
+                    {r.entry.status === "APPROVED" && (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        loading={busyId === r.entry.id}
+                        onClick={() => setStatus(r.entry.id, "reject")}
+                      >
+                        {t("Reject")}
+                      </Button>
+                    )}
+                    {r.entry.status === "PAID" && (
+                      <Badge tone="slate">🔒 {t("Settled")}</Badge>
+                    )}
+                  </div>
                 </Td>
               </tr>
             ))}
@@ -401,6 +453,91 @@ export default function WorkEntriesPage() {
             <Button type="submit" loading={busy}>{t("Create entry")}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit work entry — entry details, leader & workers, work date */}
+      <Modal open={editEntry !== null} onClose={() => setEditEntry(null)} title={t("Edit work entry")}>
+        {editEntry && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveEdit();
+            }}
+            className="space-y-4"
+          >
+            <div className="rounded-lg bg-field-50 px-3 py-2 text-xs text-field-500">
+              {t("Supplier")}: {editEntry.supplier?.name ?? "—"} · {t("Rent of drop")}:{" "}
+              <Money value={editEntry.drop?.rent_per_drop ?? 0} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t("Work date")}>
+                <Input
+                  type="date"
+                  value={editForm.work_date}
+                  onChange={(e) => setEditForm({ ...editForm, work_date: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label={t("Bag count")}>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={editForm.quantity}
+                  onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                  placeholder="0"
+                />
+              </Field>
+            </div>
+            <Field label={t("Bag size")}>
+              <SearchableSelect
+                value={editForm.bag_size_id}
+                onChange={(v) => setEditForm({ ...editForm, bag_size_id: v })}
+                options={bagSizes.map((b) => ({ value: b.id, label: `${b.size_name} (${b.weight_kg}kg)` }))}
+                placeholder={t("Select bag size…")}
+                searchPlaceholder={t("Search bag sizes…")}
+                required
+              />
+            </Field>
+            <Field label={t("Onion category")}>
+              <Input
+                value={editForm.onion_category}
+                onChange={(e) => setEditForm({ ...editForm, onion_category: e.target.value })}
+                placeholder={t("Enter onion category…")}
+              />
+            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t("Leader name")}>
+                <Input
+                  value={editForm.leader_name}
+                  onChange={(e) => setEditForm({ ...editForm, leader_name: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label={t("Worker count")}>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={editForm.worker_count}
+                  onChange={(e) => setEditForm({ ...editForm, worker_count: e.target.value })}
+                  placeholder="1"
+                />
+              </Field>
+            </div>
+            <Field label={t("Notes (optional)")}>
+              <Input value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="secondary" onClick={() => setEditEntry(null)}>
+                {t("Cancel")}
+              </Button>
+              <Button type="submit" loading={busyId === editEntry.entry.id}>
+                {t("Save changes")}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Step 2: add bags popup — new total = previous + new bags */}
