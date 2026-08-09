@@ -76,11 +76,13 @@ async function resolveScope(req: any): Promise<ReportScope> {
 }
 
 function parseFilters(query: any): ReportFilters {
+  const section = query.section as string | undefined;
   return {
     from: (query.from as string) || null,
     to: (query.to as string) || null,
     facilityId: (query.facilityId as string) || null,
     supplierId: (query.supplierId as string) || null,
+    section: section === "workers" || section === "drops" ? section : null,
   };
 }
 

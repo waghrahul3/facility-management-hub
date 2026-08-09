@@ -411,6 +411,9 @@ export const mr: Record<string, string> = {
   "Total to pay": "एकूण देय रक्कम",
   "Date-wise work details": "दिनांकानुसार कामाचे तपशील",
   // ---------------------------------------------------------------------
+  "Worker invoice": "कामगार देयक",
+  "Drop invoice": "पोच भाडे देयक",
+
   // Reports
   // ---------------------------------------------------------------------
   "Collect failed: {message}": "संकलन अयशस्वी: {message}",
