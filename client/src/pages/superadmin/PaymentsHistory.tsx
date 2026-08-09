@@ -74,7 +74,7 @@ export default function PaymentsHistoryPage() {
                 <Td className="font-medium text-field-800">{r.facility?.name ?? "—"}</Td>
                 <Td>{r.supplier?.name ?? "—"}</Td>
                 <Td><Money value={r.payment.total_worker_earnings} /></Td>
-                <Td className="text-red-600">− <Money value={r.payment.total_rent_charges} /></Td>
+                <Td className="text-onion-700">+ <Money value={r.payment.total_rent_charges} /></Td>
                 <Td className="font-bold text-onion-800"><Money value={r.payment.net_payment} /></Td>
                 <Td>{r.payment.payment_method ?? "—"}</Td>
                 <Td><StatusBadge status={r.payment.collection_status} /></Td>

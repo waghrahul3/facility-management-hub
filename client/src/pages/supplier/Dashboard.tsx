@@ -72,15 +72,15 @@ export default function SupplierDashboard() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title={t("This week at a glance")} subtitle={t("Worker earnings − drop rent = net payment")}>
+        <Card title={t("This week at a glance")} subtitle={t("Worker earnings + drop rent = net payment")}>
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-field-500">{t("Total worker earnings")}</span>
               <span className="font-semibold"><Money value={week.totalWorkerEarnings} /></span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-field-500">{t("Total rent charges ({count} drops)", { count: week.totalDrops })}</span>
-              <span className="font-semibold text-red-600">− <Money value={week.totalRent} /></span>
+              <span className="text-field-500">{t("Drop rent ({count} drops)", { count: week.totalDrops })}</span>
+              <span className="font-semibold text-onion-700">+ <Money value={week.totalRent} /></span>
             </div>
             <div className="flex justify-between border-t border-field-200 pt-3 text-base">
               <span className="font-semibold text-field-800">{t("Net payment to collect")}</span>

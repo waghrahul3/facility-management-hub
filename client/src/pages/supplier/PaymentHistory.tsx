@@ -144,9 +144,9 @@ export default function SupplierPaymentHistoryPage() {
                     </p>
                   </div>
                   <div className="rounded-lg bg-field-50 p-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Rent")}</p>
-                    <p className="font-display text-base font-bold text-red-600">
-                      − <Money value={p.total_rent_charges} />
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-field-400">{t("Drop rent")}</p>
+                    <p className="font-display text-base font-bold text-onion-700">
+                      + <Money value={p.total_rent_charges} />
                     </p>
                   </div>
                   <div className="rounded-lg bg-onion-50 p-3">
